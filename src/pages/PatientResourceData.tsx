@@ -1,0 +1,407 @@
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useSearchParams, Link } from 'react-router-dom';
+import * as z from 'zod';
+import { Button } from '../components/Button';
+import { UserRound, Save, Send, Users, Phone, Shield, HeartPulse, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
+import { exportToPDF } from '../utils/pdfExport';
+
+const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
+const FORM_NAME = 'Patient Resource Data';
+
+const resourceSchema = z.object({
+  patient: z.object({
+    name: z.string().min(1, 'Required'),
+    address: z.string().optional(),
+    gender: z.enum(['Male', 'Female']).optional(),
+    mrNumber: z.string().optional(),
+    admissionDate: z.string().optional(),
+    phone: z.string().optional(),
+  }),
+  specialInstructions: z.string().optional(),
+  demographics: z.object({
+    dob: z.string().optional(),
+    primaryLanguage: z.string().optional(),
+    religion: z.string().optional(),
+    maritalStatus: z.enum(['S', 'M', 'D', 'O']).optional(),
+    raceEthnicity: z.array(z.string()),
+    raceOther: z.string().optional(),
+  }),
+  emergencyContact: z.object({
+    name: z.string().optional(),
+    relationship: z.string().optional(),
+    address: z.string().optional(),
+    telephoneHome: z.string().optional(),
+    telephoneBusiness: z.string().optional(),
+  }),
+  resources: z.record(z.string(), z.string()),
+  insurance: z.object({
+    medicareNumber: z.string().optional(),
+    medicaidNumber: z.string().optional(),
+    other: z.string().optional(),
+  }),
+});
+
+type ResourceFormValues = z.infer<typeof resourceSchema>;
+
+const RESOURCE_FIELDS = [
+  'Primary MD',
+  'Clinical Contact Person',
+  'Hospital of Preference',
+  'Social Worker',
+  'Pharmacy Name',
+  'Home Care/Case Manager',
+  'Meals on Wheels',
+  'Transportation',
+  'Adult Day Care',
+  'Laboratory',
+  'DME Company',
+  'Homemaker Name',
+  'Caregiver Support System'
+];
+
+export const PatientResourceData: React.FC = () => {
+  const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<ResourceFormValues>({
+    resolver: zodResolver(resourceSchema),
+    defaultValues: {
+      demographics: { raceEthnicity: [] },
+      resources: RESOURCE_FIELDS.reduce((acc, field) => ({ ...acc, [field]: '' }), {}),
+    }
+  });
+
+  const [formId, setFormId] = useState<string | null>(null);
+  const [isFetchingForm, setIsFetchingForm] = useState(true);
+
+  useEffect(() => {
+    const fetchFormId = async () => {
+      try {
+        const id = await getFormIdByName(FORM_NAME);
+        setFormId(id);
+      } finally {
+        setIsFetchingForm(false);
+      }
+    };
+    fetchFormId();
+  }, []);
+
+  useEffect(() => {
+    if (patientId && patientId !== DUMMY_PATIENT_ID) {
+      const fetchPatient = async () => {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('first_name, last_name, dob, gender, phone, address, insurance_id')
+          .eq('id', patientId)
+          .single();
+        
+        if (data && !error) {
+          setValue('patient.name', `${data.first_name} ${data.last_name}`);
+          setValue('patient.address', data.address || '');
+          setValue('patient.phone', data.phone || '');
+          setValue('patient.gender', data.gender === 'female' ? 'Female' : 'Male');
+          setValue('demographics.dob', data.dob);
+          setValue('insurance.medicaidNumber', data.insurance_id || '');
+        }
+      };
+      fetchPatient();
+    }
+  }, [patientId, setValue]);
+
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const formRef = React.useRef<HTMLFormElement>(null);
+
+  const handlePrint = async () => {
+    if (!formRef.current) return;
+    try {
+      setIsGeneratingPDF(true);
+      await exportToPDF(formRef.current, `Patient_Resource_Data_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('PDF error:', error);
+      alert('Failed to generate PDF. Please try again or use the browser print feature.');
+      if (formRef.current) formRef.current.classList.remove('pdf-mode');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const submitForm = async (data: ResourceFormValues, status: 'draft' | 'submitted') => {
+    if (!profile) {
+      alert('You must be logged in to submit forms.');
+      return;
+    }
+
+    console.log(`Patient Resource Data: Starting submission (status: ${status})...`);
+    try {
+      if (status === 'draft') setIsSavingDraft(true);
+      
+      // 1. Get Form ID if not already fetched
+      let currentFormId = formId;
+      if (!currentFormId) {
+        console.log(`Patient Resource Data: Form ID missing, fetching for "${FORM_NAME}"...`);
+        currentFormId = (await withTimeout(getFormIdByName(FORM_NAME))) as any;
+        if (!currentFormId) {
+          throw new Error(`The "${FORM_NAME}" form is missing from the database. Please go to the Dashboard to run the Database Setup.`);
+        }
+        setFormId(currentFormId);
+      }
+      
+      console.log(`Patient Resource Data: Using Form ID: ${currentFormId}, Patient ID: ${patientId}`);
+
+      // 2. Insert into form_responses
+      const { error: responseError } = await supabase
+        .from('form_responses')
+        .insert([{
+          form_id: currentFormId,
+          patient_id: patientId,
+          staff_id: profile.id,
+          data: data,
+          status: status
+        }]);
+      
+      if (responseError) {
+        console.error('Patient Resource Data: Response insertion error:', responseError);
+        throw responseError;
+      }
+      
+      alert(status === 'draft' ? 'Draft saved successfully!' : 'Patient Resource Data submitted successfully!');
+      if (status === 'submitted') reset();
+    } catch (error: any) {
+      console.error('Patient Resource Data: Caught error during submission:', error);
+      alert(`Error submitting form: ${error.message || 'Please try again.'}`);
+    } finally {
+      setIsSavingDraft(false);
+      console.log('Patient Resource Data: Submission process finished.');
+    }
+  };
+
+  const onSubmit = (data: ResourceFormValues) => submitForm(data, 'submitted');
+
+  return (
+    <div className="max-w-5xl mx-auto p-8">
+      <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group">
+        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+        <span className="text-sm font-medium">Back to Forms</span>
+      </Link>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+            <UserRound className="text-partners-green" />
+            Patient Resource Data Form
+          </h2>
+          <p className="text-partners-gray">Demographic information and health/community resources.</p>
+        </div>
+        <div className="flex gap-3 no-print">
+          <Button 
+            variant="secondary" 
+            type="button" 
+            onClick={handlePrint}
+            disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
+          >
+            {isGeneratingPDF ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+          </Button>
+          <Button 
+            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {isSubmitting ? 'Submitting...' : 'Submit Form'}
+          </Button>
+        </div>
+      </div>
+
+      <form 
+        ref={formRef}
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm"
+      >
+        {/* Patient Info */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Patient Name</label>
+              <input {...register('patient.name')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Address</label>
+              <textarea {...register('patient.address')} rows={2} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="Male" {...register('patient.gender')} className="w-4 h-4 text-partners-blue-dark" />
+                <span className="text-sm">Male</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="Female" {...register('patient.gender')} className="w-4 h-4 text-partners-blue-dark" />
+                <span className="text-sm">Female</span>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-700">M.R.#</label>
+                <input {...register('patient.mrNumber')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-700">Admission Date</label>
+                <input type="date" {...register('patient.admissionDate')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              </div>
+              <div className="space-y-1 col-span-full">
+                <label className="text-sm font-medium text-zinc-700">Phone</label>
+                <input {...register('patient.phone')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <label className="text-sm font-medium text-zinc-700">Directions/Special Instructions:</label>
+          <textarea {...register('specialInstructions')} rows={3} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+        </section>
+
+        {/* Demographics */}
+        <section className="space-y-6 bg-zinc-50 p-6 rounded-3xl border border-zinc-100">
+          <div className="flex items-center gap-2 text-partners-blue-dark font-bold border-b pb-2">
+            <Users size={20} />
+            <h3 className="uppercase tracking-widest text-sm">Demographic Information</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-700">Date of Birth</label>
+                <input type="date" {...register('demographics.dob')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-700">Primary Language</label>
+                <input {...register('demographics.primaryLanguage')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-700">Religion</label>
+                <input {...register('demographics.religion')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Marital Status</label>
+                <div className="flex gap-4">
+                  {['S', 'M', 'D', 'O'].map(status => (
+                    <label key={status} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" value={status} {...register('demographics.maritalStatus')} className="w-4 h-4 text-partners-blue-dark" />
+                      <span className="text-sm">{status}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Race/Ethnicity</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['White', 'Black', 'Indian', 'Asian', 'Hispanic', 'Russian', 'Other'].map(race => (
+                    <label key={race} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" value={race} {...register('demographics.raceEthnicity')} className="w-4 h-4 rounded border-zinc-300" />
+                      <span className="text-xs">{race}</span>
+                    </label>
+                  ))}
+                </div>
+                {watch('demographics.raceEthnicity')?.includes('Other') && (
+                  <input {...register('demographics.raceOther')} className="w-full px-3 py-1 mt-2 border-b border-zinc-200 outline-none text-sm" placeholder="Specify other" />
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Emergency Contact */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-partners-blue-dark font-bold border-b pb-2">
+            <Phone size={20} />
+            <h3 className="uppercase tracking-widest text-sm">Emergency Contact</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Name</label>
+              <input {...register('emergencyContact.name')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Relationship</label>
+              <input {...register('emergencyContact.relationship')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1 col-span-full">
+              <label className="text-sm font-medium text-zinc-700">Address</label>
+              <input {...register('emergencyContact.address')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Telephone: Home</label>
+              <input {...register('emergencyContact.telephoneHome')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Business</label>
+              <input {...register('emergencyContact.telephoneBusiness')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+          </div>
+        </section>
+
+        {/* Health and Community Resources */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-partners-blue-dark font-bold border-b pb-2">
+            <HeartPulse size={20} />
+            <h3 className="uppercase tracking-widest text-sm">Health and Community Resources</h3>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-zinc-200">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-200">
+                  <th className="px-4 py-2 text-xs font-bold text-zinc-500 uppercase">Resources</th>
+                  <th className="px-4 py-2 text-xs font-bold text-zinc-500 uppercase">Name / Agency / Telephone Number</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {RESOURCE_FIELDS.map(field => (
+                  <tr key={field}>
+                    <td className="px-4 py-2 text-sm font-medium text-zinc-700 bg-zinc-50/50 w-1/3">{field}</td>
+                    <td className="px-4 py-2">
+                      <input {...register(`resources.${field}`)} className="w-full px-3 py-1 text-sm outline-none bg-transparent focus:bg-white transition-colors" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Insurance */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-partners-blue-dark font-bold border-b pb-2">
+            <Shield size={20} />
+            <h3 className="uppercase tracking-widest text-sm">Insurance Information</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Medicare Number</label>
+              <input {...register('insurance.medicareNumber')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Medicaid Number</label>
+              <input {...register('insurance.medicaidNumber')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">Other</label>
+              <input {...register('insurance.other')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+          </div>
+        </section>
+      </form>
+    </div>
+  );
+};
