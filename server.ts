@@ -245,38 +245,38 @@ app.post("/api/admin/create-user", async (req, res) => {
     }
   });
 
-  // API 404 Handler - Prevents falling through to SPA for missing API routes
-  app.all("/api/*", (req, res) => {
-    res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
-  });
+// API 404 Handler - Prevents falling through to SPA for missing API routes
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
+});
 
-  export default app;
+export default app;
 
-  async function startServer() {
-    // Vite middleware for development
-    const isProd = process.env.NODE_ENV === "production";
-    const PORT = 3000;
-    
-    if (!isProd) {
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-      console.log("Vite middleware loaded in development mode");
-    } else {
-      console.log("Serving static files in production mode");
-      app.use(express.static(path.join(__dirname, "dist")));
-      app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "dist", "index.html"));
-      });
-    }
-
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+async function startServer() {
+  // Vite middleware for development
+  const isProd = process.env.NODE_ENV === "production";
+  const PORT = 3000;
+  
+  if (!isProd) {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+    console.log("Vite middleware loaded in development mode");
+  } else {
+    console.log("Serving static files in production mode");
+    app.use(express.static(path.join(__dirname, "dist")));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
 
-  if (!process.env.VERCEL) {
-    startServer();
-  }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+if (!process.env.VERCEL) {
+  startServer();
+}
