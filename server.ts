@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -29,6 +30,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(cors());
   app.use(express.json());
 
   // Admin: Create User Endpoint
@@ -244,6 +246,11 @@ async function startServer() {
       console.error("PDF Generation Error:", error);
       res.status(500).json({ error: "Failed to generate PDF" });
     }
+  });
+
+  // API 404 Handler - Prevents falling through to SPA for missing API routes
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
   });
 
   // Vite middleware for development
