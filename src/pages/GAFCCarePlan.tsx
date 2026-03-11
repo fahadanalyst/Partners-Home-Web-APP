@@ -308,7 +308,7 @@ export const GAFCCarePlan: React.FC = () => {
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
             <ClipboardList className="text-partners-blue-light" />
@@ -316,12 +316,13 @@ export const GAFCCarePlan: React.FC = () => {
           </h2>
           <p className="text-partners-gray">Comprehensive MassHealth GAFC Care Plan Template.</p>
         </div>
-        <div className="flex gap-3 no-print">
+        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
+            className="flex-1 md:flex-none"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -334,6 +335,7 @@ export const GAFCCarePlan: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
+            className="flex-1 md:flex-none"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Care Plan'}

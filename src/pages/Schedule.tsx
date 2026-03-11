@@ -67,6 +67,8 @@ export const Schedule: React.FC = () => {
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<VisitFormValues>({
     resolver: zodResolver(visitSchema)
@@ -74,6 +76,9 @@ export const Schedule: React.FC = () => {
 
   useEffect(() => {
     fetchVisits();
+  }, [currentMonth]);
+
+  useEffect(() => {
     fetchFormData();
   }, []);
 
@@ -93,6 +98,11 @@ export const Schedule: React.FC = () => {
   const fetchVisits = async () => {
     try {
       setLoading(true);
+      
+      // Get start and end of current month
+      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString();
+      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
       const { data, error } = await supabase
         .from('visits')
         .select(`
@@ -100,6 +110,8 @@ export const Schedule: React.FC = () => {
           patient:patients(first_name, last_name),
           staff:profiles(full_name)
         `)
+        .gte('scheduled_at', startOfMonth)
+        .lte('scheduled_at', endOfMonth)
         .order('scheduled_at', { ascending: true });
 
       if (error) throw error;
@@ -153,9 +165,23 @@ export const Schedule: React.FC = () => {
   };
 
   const filteredVisits = visits.filter(v => {
-    if (filterStatus === 'all') return true;
-    return v.status === filterStatus;
+    const visitDate = new Date(v.scheduled_at).toDateString();
+    const isSameDate = visitDate === selectedDate.toDateString();
+    
+    if (filterStatus === 'all') return isSameDate;
+    return isSameDate && v.status === filterStatus;
   });
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -207,43 +233,59 @@ export const Schedule: React.FC = () => {
         <div className="lg:col-span-1 space-y-6 order-2 lg:order-1">
           <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-zinc-900">March 2026</h3>
+              <h3 className="font-bold text-zinc-900">
+                {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h3>
               <div className="flex gap-1">
-                <Button variant="ghost" size="sm" className="p-1"><ChevronLeft size={18} /></Button>
-                <Button variant="ghost" size="sm" className="p-1"><ChevronRight size={18} /></Button>
+                <Button variant="ghost" size="sm" className="p-1" onClick={handlePrevMonth}><ChevronLeft size={18} /></Button>
+                <Button variant="ghost" size="sm" className="p-1" onClick={handleNextMonth}><ChevronRight size={18} /></Button>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-zinc-400 mb-4">
               <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
             </div>
             <div className="grid grid-cols-7 gap-2 text-center">
-              {Array.from({ length: 31 }).map((_, i) => (
-                <div 
-                  key={i} 
-                  className={`py-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                    i + 1 === 4 ? 'bg-partners-blue-dark text-white' : 'hover:bg-zinc-50 text-zinc-600'
-                  }`}
-                >
-                  {i + 1}
-                </div>
+              {/* Empty cells for days before the first day of the month */}
+              {Array.from({ length: firstDayOfMonth(currentMonth.getFullYear(), currentMonth.getMonth()) }).map((_, i) => (
+                <div key={`empty-${i}`} className="py-2"></div>
               ))}
+              {Array.from({ length: daysInMonth(currentMonth.getFullYear(), currentMonth.getMonth()) }).map((_, i) => {
+                const day = i + 1;
+                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                const isSelected = date.toDateString() === selectedDate.toDateString();
+                const isToday = date.toDateString() === new Date().toDateString();
+                
+                return (
+                  <div 
+                    key={day} 
+                    onClick={() => setSelectedDate(date)}
+                    className={clsx(
+                      "py-2 rounded-lg text-sm cursor-pointer transition-colors",
+                      isSelected ? "bg-partners-blue-dark text-white shadow-md shadow-partners-blue-dark/20" : 
+                      isToday ? "bg-zinc-100 text-partners-blue-dark font-bold" : "hover:bg-zinc-50 text-zinc-600"
+                    )}
+                  >
+                    {day}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           <div className="bg-partners-blue-dark p-6 rounded-3xl text-white shadow-lg shadow-partners-blue-dark/20">
-            <h4 className="font-bold mb-2">Today's Summary</h4>
+            <h4 className="font-bold mb-2">Summary for {selectedDate.toLocaleDateString()}</h4>
             <div className="space-y-4 mt-4">
               <div className="flex justify-between items-center text-sm">
                 <span className="opacity-70">Total Visits</span>
                 <span className="font-bold">
-                  {visits.filter(v => new Date(v.scheduled_at).toDateString() === new Date().toDateString()).length}
+                  {visits.filter(v => new Date(v.scheduled_at).toDateString() === selectedDate.toDateString()).length}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="opacity-70">Completed</span>
                 <span className="font-bold">
                   {visits.filter(v => 
-                    new Date(v.scheduled_at).toDateString() === new Date().toDateString() && 
+                    new Date(v.scheduled_at).toDateString() === selectedDate.toDateString() && 
                     v.status === 'completed'
                   ).length}
                 </span>
@@ -252,8 +294,8 @@ export const Schedule: React.FC = () => {
                 <span className="opacity-70">Pending</span>
                 <span className="font-bold">
                   {visits.filter(v => 
-                    new Date(v.scheduled_at).toDateString() === new Date().toDateString() && 
-                    v.status !== 'completed'
+                    new Date(v.scheduled_at).toDateString() === selectedDate.toDateString() && 
+                    v.status === 'pending'
                   ).length}
                 </span>
               </div>
@@ -277,8 +319,8 @@ export const Schedule: React.FC = () => {
               <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto text-zinc-300">
                 <CalendarIcon size={32} />
               </div>
-              <p className="text-zinc-500">No visits found for this filter.</p>
-              <Button variant="secondary" size="sm" onClick={() => { setFilterStatus('all'); setIsModalOpen(true); }}>Schedule Visit</Button>
+              <p className="text-zinc-500">No visits found for {selectedDate.toLocaleDateString()}.</p>
+              <Button variant="secondary" size="sm" onClick={() => { setIsModalOpen(true); }}>Schedule Visit</Button>
             </div>
           ) : (
             filteredVisits.map((visit) => (
