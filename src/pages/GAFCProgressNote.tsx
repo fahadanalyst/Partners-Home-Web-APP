@@ -92,8 +92,11 @@ const ADL_TASKS = [
 
 export const GAFCProgressNote: React.FC = () => {
   const { profile } = useAuth();
-  const [searchParams] = useSearchParams();
-  const patientId = searchParams.get('patientId');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlPatientId = searchParams.get('patientId');
+  const [patientId, setPatientId] = useState<string | null>(urlPatientId);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<GAFCFormValues>({
     resolver: zodResolver(gafcSchema),
@@ -114,6 +117,29 @@ export const GAFCProgressNote: React.FC = () => {
 
   const [formId, setFormId] = useState<string | null>(null);
   const [isFetchingForm, setIsFetchingForm] = useState(true);
+  const editId = searchParams.get('id');
+
+  useEffect(() => {
+    if (editId) {
+      const fetchSubmission = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('form_responses')
+            .select('*')
+            .eq('id', editId)
+            .single();
+          
+          if (data && !error) {
+            reset(data.data);
+            if (data.patient_id) setPatientId(data.patient_id);
+          }
+        } catch (error) {
+          console.error('Error fetching submission for edit:', error);
+        }
+      };
+      fetchSubmission();
+    }
+  }, [editId, reset]);
 
   useEffect(() => {
     const fetchFormId = async () => {
@@ -128,6 +154,22 @@ export const GAFCProgressNote: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const fetchPatients = async () => {
+      setIsLoadingPatients(true);
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('id, first_name, last_name')
+          .order('last_name', { ascending: true });
+        if (data) setPatients(data);
+      } finally {
+        setIsLoadingPatients(false);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  useEffect(() => {
     if (patientId) {
       const fetchPatient = async () => {
         const { data, error } = await supabase
@@ -138,11 +180,26 @@ export const GAFCProgressNote: React.FC = () => {
         
         if (data && !error) {
           setValue('participantName', `${data.first_name} ${data.last_name}`);
+          setValue('dob', ''); // You might want to fetch DOB too if available
+        } else {
+          // If patient doesn't exist, clear patientId
+          setPatientId(null);
         }
       };
       fetchPatient();
     }
   }, [patientId, setValue]);
+
+  const handlePatientChange = (id: string) => {
+    setPatientId(id);
+    const newParams = new URLSearchParams(searchParams);
+    if (id) {
+      newParams.set('patientId', id);
+    } else {
+      newParams.delete('patientId');
+    }
+    setSearchParams(newParams);
+  };
 
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -167,39 +224,64 @@ export const GAFCProgressNote: React.FC = () => {
         setFormId(currentFormId);
       }
       
-      console.log(`GAFC Note: Using Form ID: ${currentFormId}, Patient ID: ${patientId}`);
-
-      // 1.5 Verify patient exists to prevent foreign key errors
-      const { data: patientExists, error: patientCheckError } = (await withTimeout(supabase
-        .from('patients')
-        .select('id')
-        .eq('id', patientId)
-        .maybeSingle(), 60000)) as any;
-      
-      if (patientCheckError) {
-        console.error('GAFC Note: Patient check error:', patientCheckError);
-      }
-      
-      if (!patientExists) {
-        throw new Error(`The patient (ID: ${patientId}) does not exist in the database.`);
+      if (!patientId && !data.participantName) {
+        throw new Error('Please select a patient or enter a name before submitting the form.');
       }
 
-      // 2. Insert into form_responses
-      const { data: responseData, error: responseError } = await supabase
-        .from('form_responses')
-        .insert([{
-          form_id: currentFormId,
-          patient_id: patientId,
-          staff_id: profile.id,
-          data: data,
-          status: status
-        }])
-        .select()
-        .single();
-      
-      if (responseError) {
-        console.error('GAFC Note: Response insertion error:', responseError);
-        throw responseError;
+      console.log(`GAFC Note: Using Form ID: ${currentFormId}, Patient ID: ${patientId || 'Manual Entry'}`);
+
+      // 1.5 Verify patient exists if ID is provided
+      if (patientId) {
+        const { data: patientExists, error: patientCheckError } = (await withTimeout(supabase
+          .from('patients')
+          .select('id')
+          .eq('id', patientId)
+          .maybeSingle(), 60000)) as any;
+        
+        if (patientCheckError) {
+          console.error('GAFC Note: Patient check error:', patientCheckError);
+        }
+        
+        if (!patientExists) {
+          console.warn(`GAFC Note: Patient ID ${patientId} not found, proceeding as manual entry.`);
+          // We could set patientId to null here if we want to allow submission anyway
+        }
+      }
+
+      // 2. Insert or Update form_responses
+      let responseData;
+      if (editId) {
+        const { data: updateResult, error } = await supabase
+          .from('form_responses')
+          .update({
+            data: data,
+            status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        responseData = updateResult;
+        alert('GAFC Progress Note updated successfully!');
+      } else {
+        const { data: insertResult, error } = await supabase
+          .from('form_responses')
+          .insert([{
+            form_id: currentFormId,
+            patient_id: patientId,
+            staff_id: profile.id,
+            data: data,
+            status: status
+          }])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        responseData = insertResult;
+        alert('GAFC Progress Note submitted successfully!');
+        reset();
       }
       
       if (!responseData) {
@@ -227,8 +309,8 @@ export const GAFCProgressNote: React.FC = () => {
         console.log('GAFC Note: Signature inserted successfully');
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Progress note submitted successfully!');
-      if (status === 'submitted') {
+      alert(status === 'draft' ? 'Draft saved successfully!' : editId ? 'Progress note updated successfully!' : 'Progress note submitted successfully!');
+      if (status === 'submitted' && !editId) {
         reset();
       }
     } catch (error: any) {
@@ -264,38 +346,58 @@ export const GAFCProgressNote: React.FC = () => {
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-            <FileText className="text-partners-green" />
+      <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
+            <div className="p-2 bg-partners-green/10 rounded-xl">
+              <FileText className="text-partners-green" size={28} />
+            </div>
             GAFC Progress Note Form
           </h2>
-          <p className="text-partners-gray">Complete the monthly clinical progress note.</p>
+          <p className="text-partners-gray text-lg">Complete the monthly clinical progress note.</p>
         </div>
-        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
-          <Button 
-            variant="secondary" 
-            type="button" 
-            onClick={handlePrint}
-            disabled={isGeneratingPDF}
-            className="flex-1 md:flex-none"
-          >
-            {isGeneratingPDF ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4 mr-2" />
-            )}
-            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
-          </Button>
-          <Button 
-            type="button"
-            onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            className="flex-1 md:flex-none"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Submitting...' : 'Submit Note'}
-          </Button>
+        
+        <div className="flex flex-col sm:flex-row items-end gap-4 w-full lg:w-auto no-print">
+          <div className="w-full sm:w-64">
+            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">Select Patient</label>
+            <select 
+              value={patientId || ''} 
+              onChange={(e) => handlePatientChange(e.target.value)}
+              className="w-full h-11 px-4 rounded-xl border border-zinc-200 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-partners-blue-dark focus:border-transparent transition-all appearance-none cursor-pointer shadow-sm hover:border-zinc-300"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.25rem' }}
+            >
+              <option value="">-- Choose a Patient --</option>
+              {patients.map(p => (
+                <option key={p.id} value={p.id}>{p.last_name}, {p.first_name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Button 
+              variant="secondary" 
+              type="button" 
+              onClick={handlePrint}
+              disabled={isGeneratingPDF}
+              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
+            >
+              {isGeneratingPDF ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+            </Button>
+            <Button 
+              type="button"
+              onClick={handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? 'Submitting...' : 'Submit Note'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -317,39 +419,43 @@ export const GAFCProgressNote: React.FC = () => {
         {/* Header Information */}
         <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Participant Name</label>
-            <input {...register('participantName')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+            <label className="text-sm font-medium text-zinc-700">Participant Name <span className="text-red-500">*</span></label>
+            <input 
+              {...register('participantName')} 
+              placeholder="Enter full name"
+              className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" 
+            />
             {errors.participantName && <p className="text-xs text-red-500">{errors.participantName.message}</p>}
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">DOB</label>
+            <label className="text-sm font-medium text-zinc-700">DOB <span className="text-red-500">*</span></label>
             <input type="date" {...register('dob')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">GAFC Provider</label>
-            <input {...register('gafcProvider')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+            <label className="text-sm font-medium text-zinc-700">GAFC Provider <span className="text-red-500">*</span></label>
+            <input {...register('gafcProvider')} placeholder="Provider Name" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Date of Visit</label>
+            <label className="text-sm font-medium text-zinc-700">Date of Visit <span className="text-red-500">*</span></label>
             <input type="date" {...register('visitDate')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Time of Visit</label>
+            <label className="text-sm font-medium text-zinc-700">Time of Visit <span className="text-red-500">*</span></label>
             <input type="time" {...register('visitTime')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Location</label>
-            <input {...register('location')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+            <label className="text-sm font-medium text-zinc-700">Location <span className="text-red-500">*</span></label>
+            <input {...register('location')} placeholder="Home, Office, etc." className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
           <div className="space-y-1 col-span-full">
-            <label className="text-sm font-medium text-zinc-700">Staff Name & Title</label>
-            <input {...register('staffNameTitle')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+            <label className="text-sm font-medium text-zinc-700">Staff Name & Title <span className="text-red-500">*</span></label>
+            <input {...register('staffNameTitle')} placeholder="Your Name, RN/CM" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
         </section>
 
         {/* Reason for Visit */}
         <section className="space-y-2">
-          <label className="text-sm font-medium text-zinc-700">Reason for Visit</label>
+          <label className="text-sm font-medium text-zinc-700">Reason for Visit <span className="text-red-500">*</span></label>
           <textarea {...register('reasonForVisit')} rows={2} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" placeholder="Example: Monthly GAFC nursing visit, follow up after medication change, safety check, etc." />
         </section>
 
@@ -358,24 +464,24 @@ export const GAFCProgressNote: React.FC = () => {
           <h3 className="text-lg font-bold text-zinc-900 border-b pb-2">Participant Report (Subjective)</h3>
           <div className="space-y-3">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">• Current concerns</label>
-              <input {...register('subjective.currentConcerns')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">• Current concerns <span className="text-red-500">*</span></label>
+              <input {...register('subjective.currentConcerns')} placeholder="Any current health or social concerns" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">• Changes since last visit</label>
-              <input {...register('subjective.changesSinceLastVisit')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">• Changes since last visit <span className="text-red-500">*</span></label>
+              <input {...register('subjective.changesSinceLastVisit')} placeholder="New meds, hospitalizations, etc." className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">• Pain, symptoms, or new issues</label>
-              <input {...register('subjective.painSymptoms')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">• Pain, symptoms, or new issues <span className="text-red-500">*</span></label>
+              <input {...register('subjective.painSymptoms')} placeholder="Pain level, new symptoms" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">• Mood/mental status as reported</label>
-              <input {...register('subjective.moodMentalStatus')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">• Mood/mental status as reported <span className="text-red-500">*</span></label>
+              <input {...register('subjective.moodMentalStatus')} placeholder="How are they feeling emotionally?" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">• Participant comments</label>
-              <textarea {...register('subjective.participantComments')} rows={2} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">• Participant comments <span className="text-red-500">*</span></label>
+              <textarea {...register('subjective.participantComments')} rows={2} placeholder="Direct quotes or specific feedback" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
           </div>
         </section>

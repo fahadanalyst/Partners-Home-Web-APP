@@ -278,18 +278,18 @@ export const NursingAssessment: React.FC = () => {
         <div className="flex justify-between items-start">
           <div className="space-y-4 flex-1 max-w-md">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">Patient Name</label>
-              <input {...register('patient.name')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              <label className="text-sm font-medium text-zinc-700">Patient Name <span className="text-red-500">*</span></label>
+              <input {...register('patient.name')} placeholder="Enter patient name" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
           </div>
           <div className="flex gap-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">Date</label>
-              <input type="date" {...register('date')} className="px-4 py-2 rounded-xl border border-zinc-200" />
+              <label className="text-sm font-medium text-zinc-700">Date <span className="text-red-500">*</span></label>
+              <input type="date" {...register('date')} className="px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-zinc-700">Time</label>
-              <input type="time" {...register('time')} className="px-4 py-2 rounded-xl border border-zinc-200" />
+              <input type="time" {...register('time')} className="px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
           </div>
         </div>

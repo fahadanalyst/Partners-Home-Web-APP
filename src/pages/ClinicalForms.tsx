@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   ClipboardList, 
@@ -8,9 +8,18 @@ import {
   ArrowRight,
   Pill,
   Activity,
-  ClipboardCheck
+  ClipboardCheck,
+  MoreVertical,
+  Trash2,
+  Edit2,
+  Clock,
+  User
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
+import { format } from 'date-fns';
+import { clsx } from 'clsx';
 
 const forms = [
   {
@@ -120,8 +129,62 @@ const forms = [
 ];
 
 export const ClinicalForms: React.FC = () => {
+  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRecentSubmissions();
+  }, []);
+
+  const fetchRecentSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('form_responses')
+        .select(`
+          id,
+          created_at,
+          status,
+          form_id,
+          forms (name),
+          patients (first_name, last_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setRecentSubmissions(data || []);
+    } catch (error) {
+      console.error('Error fetching recent submissions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this submission?')) return;
+    try {
+      const { error } = await supabase
+        .from('form_responses')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setRecentSubmissions(prev => prev.filter(s => s.id !== id));
+      alert('Submission deleted successfully');
+    } catch (error: any) {
+      alert('Error deleting submission: ' + error.message);
+    }
+  };
+
+  const getFormPath = (formName: string) => {
+    const form = forms.find(f => f.title === formName);
+    return form?.path || '/clinical-forms';
+  };
+
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-12">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 italic">Clinical Forms</h1>
         <p className="text-sm md:text-base text-zinc-500">Access and complete clinical documentation and assessments</p>
@@ -148,6 +211,110 @@ export const ClinicalForms: React.FC = () => {
             </p>
           </Link>
         ))}
+      </div>
+
+      {/* Recent Submissions Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-zinc-900 italic flex items-center gap-2">
+            <Clock className="text-partners-blue-dark" size={24} />
+            Recent Submissions
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-4 border-partners-blue-dark border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : recentSubmissions.length > 0 ? (
+          <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-zinc-50 border-b border-zinc-200">
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Form Name</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Patient</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Date</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {recentSubmissions.map((submission) => (
+                    <tr key={submission.id} className="hover:bg-zinc-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-zinc-100 rounded-lg text-zinc-500">
+                            <FileText size={16} />
+                          </div>
+                          <span className="text-sm font-bold text-zinc-900">{submission.forms?.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-zinc-600">
+                          <User size={14} className="text-zinc-400" />
+                          {submission.patients ? `${submission.patients.first_name} ${submission.patients.last_name}` : 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-zinc-500">
+                        {format(new Date(submission.created_at), 'MMM d, yyyy h:mm a')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={clsx(
+                          'px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                          submission.status === 'submitted' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        )}>
+                          {submission.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right relative">
+                        <button 
+                          onClick={() => setActiveMenu(activeMenu === submission.id ? null : submission.id)}
+                          className="p-2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        
+                        {activeMenu === submission.id && (
+                          <div className="absolute right-6 mt-2 w-32 bg-white rounded-xl border border-zinc-200 shadow-xl z-50 overflow-hidden">
+                            <button
+                              onClick={() => {
+                                navigate(`${getFormPath(submission.forms?.name)}?id=${submission.id}`);
+                                setActiveMenu(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-xs text-zinc-600 hover:bg-zinc-50 transition-colors font-medium flex items-center gap-2 border-b border-zinc-50"
+                            >
+                              <Edit2 size={14} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDelete(submission.id);
+                                setActiveMenu(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors font-medium flex items-center gap-2"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-3xl border border-zinc-200 p-12 text-center shadow-sm">
+            <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="text-zinc-300" size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-900 mb-1 italic">No submissions yet</h3>
+            <p className="text-zinc-500">Your recently completed forms will appear here.</p>
+          </div>
+        )}
       </div>
     </div>
   );

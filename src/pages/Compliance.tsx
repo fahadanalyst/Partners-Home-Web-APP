@@ -8,9 +8,11 @@ import {
   FileText,
   BarChart3,
   Search,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { Button } from '../components/Button';
+import { Modal } from '../components/Modal';
 
 interface ComplianceStat {
   label: string;
@@ -25,6 +27,7 @@ export const Compliance: React.FC = () => {
   const [criticalAlerts, setCriticalAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchComplianceData();
@@ -242,7 +245,13 @@ export const Compliance: React.FC = () => {
                 ))
               )}
             </div>
-            <Button variant="ghost" className="w-full mt-6 text-sm text-zinc-500">View All Alerts</Button>
+            <Button 
+              variant="ghost" 
+              className="w-full mt-6 text-sm text-zinc-500"
+              onClick={() => setIsAlertsModalOpen(true)}
+            >
+              View All Alerts
+            </Button>
           </div>
         </div>
 
@@ -291,6 +300,58 @@ export const Compliance: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Alerts Modal */}
+      <Modal
+        isOpen={isAlertsModalOpen}
+        onClose={() => setIsAlertsModalOpen(false)}
+        title="Compliance Alerts"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-3">
+            <AlertTriangle className="text-amber-600 shrink-0" size={20} />
+            <p className="text-sm text-amber-800">
+              The following items require immediate attention to maintain regulatory compliance.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {criticalAlerts.length === 0 ? (
+              <div className="text-center py-12 text-zinc-500">
+                <CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={32} />
+                <p>No critical alerts found. All systems are compliant.</p>
+              </div>
+            ) : (
+              criticalAlerts.map((alert, i) => (
+                <div key={i} className="flex items-center justify-between p-6 bg-white rounded-3xl border border-zinc-200 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600">
+                      <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-zinc-900">{alert.title}</h4>
+                      <p className="text-sm text-zinc-500">{alert.patient || alert.staff}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      Critical
+                    </span>
+                    <p className="text-xs text-zinc-400 mt-1">{alert.days}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-zinc-100">
+            <Button onClick={() => setIsAlertsModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
 import { FilePlus, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
@@ -22,31 +22,69 @@ type AdmissionValues = z.infer<typeof admissionSchema>;
 
 export const AdmissionAssessment: React.FC = () => {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('id');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<AdmissionValues>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<AdmissionValues>({
     resolver: zodResolver(admissionSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0]
     }
   });
 
+  useEffect(() => {
+    if (editId) {
+      fetchSubmission();
+    }
+  }, [editId]);
+
+  const fetchSubmission = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('form_responses')
+        .select('*')
+        .eq('id', editId)
+        .single();
+      
+      if (data && !error) {
+        reset(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching submission:', error);
+    }
+  };
+
   const onSubmit = async (data: AdmissionValues) => {
     if (!profile) return;
     setIsSubmitting(true);
     try {
       const formId = await getFormIdByName('Admission Assessment');
-      const { error } = await supabase.from('form_responses').insert([{
-        form_id: formId,
-        patient_id: '00000000-0000-0000-0000-000000000000',
-        submitted_by: profile.id,
-        data: data,
-        status: 'submitted'
-      }]);
-      if (error) throw error;
-      alert('Admission Assessment submitted successfully!');
+      
+      if (editId) {
+        const { error } = await supabase
+          .from('form_responses')
+          .update({
+            data: data,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editId);
+        if (error) throw error;
+        alert('Admission Assessment updated successfully!');
+      } else {
+        const { error } = await supabase.from('form_responses').insert([{
+          form_id: formId,
+          patient_id: '00000000-0000-0000-0000-000000000000',
+          staff_id: profile.id,
+          data: data,
+          status: 'submitted'
+        }]);
+        if (error) throw error;
+        alert('Admission Assessment submitted successfully!');
+        reset();
+      }
     } catch (error: any) {
       alert(`Error: ${error.message}`);
     } finally {
@@ -95,17 +133,17 @@ export const AdmissionAssessment: React.FC = () => {
       <form ref={formRef} className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Date</label>
-            <input type="date" {...register('date')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+            <label className="text-sm font-medium text-zinc-700">Date <span className="text-red-500">*</span></label>
+            <input type="date" {...register('date')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none focus:ring-2 focus:ring-partners-blue-dark" />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Patient Name</label>
-            <input {...register('patientName')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+            <label className="text-sm font-medium text-zinc-700">Patient Name <span className="text-red-500">*</span></label>
+            <input {...register('patientName')} placeholder="Enter full name" className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none focus:ring-2 focus:ring-partners-blue-dark" />
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-sm font-medium text-zinc-700">Assessment Details</label>
-          <textarea {...register('assessment')} rows={10} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+          <label className="text-sm font-medium text-zinc-700">Assessment Details <span className="text-red-500">*</span></label>
+          <textarea {...register('assessment')} rows={10} placeholder="Provide detailed admission assessment..." className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none focus:ring-2 focus:ring-partners-blue-dark" />
         </div>
         <div className="space-y-4">
           <label className="text-sm font-medium text-zinc-700">Signature</label>

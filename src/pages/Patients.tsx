@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
+import { clsx } from 'clsx';
 import { 
   Users, 
   Search, 
   Plus, 
   MoreVertical, 
+  Trash2,
   UserPlus,
   Filter,
   ArrowRight,
@@ -12,7 +14,9 @@ import {
   Phone,
   Mail,
   MapPin,
-  Shield
+  Shield,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Link } from 'react-router-dom';
@@ -43,6 +47,7 @@ interface Patient {
   ssn_encrypted: string | null;
   status: string;
   created_at: string;
+  last_visit?: string;
 }
 
 export const Patients: React.FC = () => {
@@ -50,6 +55,8 @@ export const Patients: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
@@ -61,16 +68,46 @@ export const Patients: React.FC = () => {
     fetchPatients();
   }, []);
 
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch patients
+      const { data: patientsData, error: patientsError } = await supabase
         .from('patients')
         .select('*')
         .order('last_name', { ascending: true });
 
-      if (error) throw error;
-      setPatients(data || []);
+      if (patientsError) throw patientsError;
+
+      // Fetch last visits for all patients
+      const { data: visitsData, error: visitsError } = await supabase
+        .from('visits')
+        .select('patient_id, scheduled_at')
+        .eq('status', 'completed')
+        .order('scheduled_at', { ascending: false });
+
+      if (visitsError) {
+        console.warn('Error fetching visits:', visitsError);
+      }
+
+      // Map last visits to patients
+      const patientsWithVisits = (patientsData || []).map(patient => {
+        const lastVisit = visitsData?.find(v => v.patient_id === patient.id);
+        return {
+          ...patient,
+          last_visit: lastVisit?.scheduled_at
+        };
+      });
+
+      setPatients(patientsWithVisits);
     } catch (error) {
       console.error('Error fetching patients:', error);
     } finally {
@@ -113,10 +150,31 @@ export const Patients: React.FC = () => {
       setIsModalOpen(false);
       reset();
       fetchPatients();
-      alert('Patient added successfully!');
+      setNotification({ type: 'success', message: 'Patient added successfully!' });
     } catch (error: any) {
       console.error('Error adding patient:', error);
-      alert('Error adding patient: ' + (error.message || 'Check console for details'));
+      setNotification({ type: 'error', message: 'Error adding patient: ' + (error.message || 'Check console for details') });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!patientToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('patients')
+        .delete()
+        .eq('id', patientToDelete);
+
+      if (error) throw error;
+
+      setPatients(patients.filter(p => p.id !== patientToDelete));
+      setNotification({ type: 'success', message: 'Patient record deleted successfully.' });
+    } catch (error: any) {
+      console.error('Error deleting patient:', error);
+      setNotification({ type: 'error', message: 'Error deleting patient: ' + (error.message || 'Check console for details') });
+    } finally {
+      setPatientToDelete(null);
     }
   };
 
@@ -232,7 +290,7 @@ export const Patients: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-zinc-500 text-sm">
-                    --
+                    {patient.last_visit ? new Date(patient.last_visit).toLocaleDateString() : '--'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -246,8 +304,13 @@ export const Patients: React.FC = () => {
                           Care Plan
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="sm" className="rounded-full">
-                        <ArrowRight size={16} />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="rounded-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setPatientToDelete(patient.id)}
+                      >
+                        <Trash2 size={16} />
                       </Button>
                     </div>
                   </td>
@@ -295,7 +358,7 @@ export const Patients: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs text-zinc-400 font-bold uppercase">Last Visit</p>
-                  <p className="text-zinc-600">--</p>
+                  <p className="text-zinc-600">{patient.last_visit ? new Date(patient.last_visit).toLocaleDateString() : '--'}</p>
                 </div>
               </div>
 
@@ -310,6 +373,14 @@ export const Patients: React.FC = () => {
                     Care Plan
                   </Button>
                 </Link>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="flex-none text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl px-3"
+                  onClick={() => setPatientToDelete(patient.id)}
+                >
+                  <Trash2 size={16} />
+                </Button>
               </div>
             </div>
           ))
@@ -439,6 +510,60 @@ export const Patients: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!patientToDelete}
+        onClose={() => setPatientToDelete(null)}
+        title="Confirm Deletion"
+        size="sm"
+      >
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 p-4 bg-red-50 rounded-2xl border border-red-100">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <Trash2 className="text-red-600" size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-900">Are you sure?</p>
+              <p className="text-xs text-red-700">This action cannot be undone and will permanently delete the patient record.</p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setPatientToDelete(null)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDelete}
+            >
+              Delete Record
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Notification Toast */}
+      {notification && (
+        <div className={clsx(
+          "fixed bottom-8 right-8 z-[100] px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-bottom-4 duration-300 flex items-center gap-3",
+          notification.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-red-50 border-red-100 text-red-800"
+        )}>
+          {notification.type === 'success' ? (
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+              <CheckCircle className="text-emerald-600" size={18} />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <Trash2 className="text-red-600" size={18} />
+            </div>
+          )}
+          <p className="text-sm font-bold">{notification.message}</p>
+          <button onClick={() => setNotification(null)} className="ml-4 text-zinc-400 hover:text-zinc-600">
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

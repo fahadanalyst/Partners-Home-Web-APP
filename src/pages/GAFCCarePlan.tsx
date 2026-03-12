@@ -113,8 +113,11 @@ type CarePlanValues = z.infer<typeof carePlanSchema>;
 
 export const GAFCCarePlan: React.FC = () => {
   const { profile } = useAuth();
-  const [searchParams] = useSearchParams();
-  const patientId = searchParams.get('patientId');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlPatientId = searchParams.get('patientId');
+  const [patientId, setPatientId] = useState<string | null>(urlPatientId);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
   const { register, control, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<CarePlanValues>({
     resolver: zodResolver(carePlanSchema),
@@ -156,21 +159,51 @@ export const GAFCCarePlan: React.FC = () => {
   });
 
   useEffect(() => {
+    const fetchPatients = async () => {
+      setIsLoadingPatients(true);
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('id, first_name, last_name')
+          .order('last_name', { ascending: true });
+        if (data) setPatients(data);
+      } finally {
+        setIsLoadingPatients(false);
+      }
+    };
+    fetchPatients();
+  }, []);
+
+  useEffect(() => {
     if (patientId) {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
-          .select('first_name, last_name')
+          .select('first_name, last_name, dob')
           .eq('id', patientId)
           .single();
         
         if (data && !error) {
           setValue('memberInfo.name', `${data.first_name} ${data.last_name}`);
+          if (data.dob) setValue('memberInfo.dob', data.dob);
+        } else {
+          setPatientId(null);
         }
       };
       fetchPatient();
     }
   }, [patientId, setValue]);
+
+  const handlePatientChange = (id: string) => {
+    setPatientId(id);
+    const newParams = new URLSearchParams(searchParams);
+    if (id) {
+      newParams.set('patientId', id);
+    } else {
+      newParams.delete('patientId');
+    }
+    setSearchParams(newParams);
+  };
 
   const { fields, append, remove } = useFieldArray({ control, name: 'interventions' });
 
@@ -211,21 +244,27 @@ export const GAFCCarePlan: React.FC = () => {
         setFormId(currentFormId);
       }
       
-      console.log(`GAFC Care Plan: Using Form ID: ${currentFormId}, Patient ID: ${patientId}`);
-
-      // 1.5 Verify patient exists
-      const { data: patientExists, error: patientCheckError } = (await withTimeout(supabase
-        .from('patients')
-        .select('id')
-        .eq('id', patientId)
-        .maybeSingle(), 60000)) as any;
-      
-      if (patientCheckError) {
-        console.error('GAFC Care Plan: Patient check error:', patientCheckError);
+      if (!patientId && !data.memberInfo.name) {
+        throw new Error('Please select a patient or enter a name before submitting the form.');
       }
-      
-      if (!patientExists) {
-        throw new Error(`The patient (ID: ${patientId}) does not exist in the database.`);
+
+      console.log(`GAFC Care Plan: Using Form ID: ${currentFormId}, Patient ID: ${patientId || 'Manual Entry'}`);
+
+      // 1.5 Verify patient exists if ID is provided
+      if (patientId) {
+        const { data: patientExists, error: patientCheckError } = (await withTimeout(supabase
+          .from('patients')
+          .select('id')
+          .eq('id', patientId)
+          .maybeSingle(), 60000)) as any;
+        
+        if (patientCheckError) {
+          console.error('GAFC Care Plan: Patient check error:', patientCheckError);
+        }
+        
+        if (!patientExists) {
+          console.warn(`GAFC Care Plan: Patient ID ${patientId} not found, proceeding as manual entry.`);
+        }
       }
 
       // 2. Insert into form_responses
@@ -308,38 +347,58 @@ export const GAFCCarePlan: React.FC = () => {
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-            <ClipboardList className="text-partners-blue-light" />
+      <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
+            <div className="p-2 bg-partners-blue-light/10 rounded-xl">
+              <ClipboardList className="text-partners-blue-light" size={28} />
+            </div>
             GAFC CARE PLAN
           </h2>
-          <p className="text-partners-gray">Comprehensive MassHealth GAFC Care Plan Template.</p>
+          <p className="text-partners-gray text-lg">Comprehensive MassHealth GAFC Care Plan Template.</p>
         </div>
-        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
-          <Button 
-            variant="secondary" 
-            type="button" 
-            onClick={handlePrint}
-            disabled={isGeneratingPDF}
-            className="flex-1 md:flex-none"
-          >
-            {isGeneratingPDF ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4 mr-2" />
-            )}
-            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
-          </Button>
-          <Button 
-            type="button"
-            onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            className="flex-1 md:flex-none"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Submitting...' : 'Submit Care Plan'}
-          </Button>
+        
+        <div className="flex flex-col sm:flex-row items-end gap-4 w-full lg:w-auto no-print">
+          <div className="w-full sm:w-64">
+            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">Select Patient</label>
+            <select 
+              value={patientId || ''} 
+              onChange={(e) => handlePatientChange(e.target.value)}
+              className="w-full h-11 px-4 rounded-xl border border-zinc-200 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-partners-blue-dark focus:border-transparent transition-all appearance-none cursor-pointer shadow-sm hover:border-zinc-300"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.25rem' }}
+            >
+              <option value="">-- Choose a Patient --</option>
+              {patients.map(p => (
+                <option key={p.id} value={p.id}>{p.last_name}, {p.first_name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Button 
+              variant="secondary" 
+              type="button" 
+              onClick={handlePrint}
+              disabled={isGeneratingPDF}
+              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
+            >
+              {isGeneratingPDF ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+            </Button>
+            <Button 
+              type="button"
+              onClick={handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {isSubmitting ? 'Submitting...' : 'Submit Care Plan'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -363,16 +422,20 @@ export const GAFCCarePlan: React.FC = () => {
           <h3 className="text-lg font-bold text-zinc-900 border-b pb-2 uppercase tracking-wider">Member Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">Member Name</label>
-              <input {...register('memberInfo.name')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">Member Name <span className="text-red-500">*</span></label>
+              <input 
+                {...register('memberInfo.name')} 
+                placeholder="Enter full name"
+                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" 
+              />
               {errors.memberInfo?.name && <p className="text-xs text-red-500">{errors.memberInfo.name.message}</p>}
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">MassHealth ID</label>
-              <input {...register('memberInfo.massHealthId')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <label className="text-sm font-medium text-zinc-700">MassHealth ID <span className="text-red-500">*</span></label>
+              <input {...register('memberInfo.massHealthId')} placeholder="ID Number" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">Date of Birth</label>
+              <label className="text-sm font-medium text-zinc-700">Date of Birth <span className="text-red-500">*</span></label>
               <input type="date" {...register('memberInfo.dob')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="space-y-1">

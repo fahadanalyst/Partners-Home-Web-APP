@@ -35,7 +35,9 @@ type ClinicalNoteFormValues = z.infer<typeof clinicalNoteSchema>;
 export const ClinicalNoteForm: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
-  const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const editId = searchParams.get('id');
+  const patientIdFromUrl = searchParams.get('patientId');
+  const patientId = patientIdFromUrl || DUMMY_PATIENT_ID;
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<ClinicalNoteFormValues>({
     resolver: zodResolver(clinicalNoteSchema),
@@ -61,6 +63,28 @@ export const ClinicalNoteForm: React.FC = () => {
     };
     fetchFormId();
   }, []);
+
+  useEffect(() => {
+    if (editId) {
+      fetchSubmission();
+    }
+  }, [editId]);
+
+  const fetchSubmission = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('form_responses')
+        .select('*')
+        .eq('id', editId)
+        .single();
+      
+      if (data && !error) {
+        reset(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching submission:', error);
+    }
+  };
 
   useEffect(() => {
     if (patientId && patientId !== DUMMY_PATIENT_ID) {
@@ -119,22 +143,37 @@ export const ClinicalNoteForm: React.FC = () => {
         throw new Error(`The patient (ID: ${patientId}) does not exist in the database. Please go to the Dashboard and click "Setup Now" to create the test patient.`);
       }
 
-      // 2. Insert into form_responses
-      const { data: responseData, error: responseError } = await supabase
-        .from('form_responses')
-        .insert([{
-          form_id: currentFormId,
-          patient_id: patientId,
-          staff_id: profile.id,
-          data: data,
-          status: status
-        }])
-        .select()
-        .single();
-      
-      if (responseError) {
-        console.error('Clinical Note: Response insertion error:', responseError);
-        throw responseError;
+      // 2. Insert or Update form_responses
+      let responseData;
+      if (editId) {
+        const { data: updateResult, error: responseError } = await supabase
+          .from('form_responses')
+          .update({
+            data: data,
+            status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editId)
+          .select()
+          .single();
+        
+        if (responseError) throw responseError;
+        responseData = updateResult;
+      } else {
+        const { data: insertResult, error: responseError } = await supabase
+          .from('form_responses')
+          .insert([{
+            form_id: currentFormId,
+            patient_id: patientId,
+            staff_id: profile.id,
+            data: data,
+            status: status
+          }])
+          .select()
+          .single();
+        
+        if (responseError) throw responseError;
+        responseData = insertResult;
       }
 
       if (!responseData) {

@@ -56,15 +56,26 @@ export const ClinicalNotes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<ClinicalNote | null>(null);
   const [filterType, setFilterType] = useState('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeNoteMenu, setActiveNoteMenu] = useState<string | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<NoteFormValues>({
+  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<NoteFormValues>({
     resolver: zodResolver(noteSchema)
   });
+
+  useEffect(() => {
+    if (editingNote) {
+      setValue('patient_id', editingNote.patient_id);
+      setValue('note_type', editingNote.note_type);
+      setValue('content', editingNote.content);
+    } else {
+      reset();
+    }
+  }, [editingNote, setValue, reset]);
 
   useEffect(() => {
     fetchNotes();
@@ -104,22 +115,36 @@ export const ClinicalNotes: React.FC = () => {
   const onSubmit = async (data: NoteFormValues) => {
     if (!profile) return;
     try {
-      const { error } = await supabase
-        .from('clinical_notes')
-        .insert([{
-          ...data,
-          staff_id: profile.id
-        }]);
+      if (editingNote) {
+        const { error } = await supabase
+          .from('clinical_notes')
+          .update({
+            ...data,
+            staff_id: profile.id
+          })
+          .eq('id', editingNote.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        alert('Clinical note updated successfully!');
+      } else {
+        const { error } = await supabase
+          .from('clinical_notes')
+          .insert([{
+            ...data,
+            staff_id: profile.id
+          }]);
+
+        if (error) throw error;
+        alert('Clinical note added successfully!');
+      }
       
       setIsModalOpen(false);
+      setEditingNote(null);
       reset();
       fetchNotes();
-      alert('Clinical note added successfully!');
     } catch (error: any) {
-      console.error('Error adding clinical note:', error);
-      alert('Error adding clinical note: ' + error.message);
+      console.error('Error saving clinical note:', error);
+      alert('Error saving clinical note: ' + error.message);
     }
   };
 
@@ -260,6 +285,16 @@ export const ClinicalNotes: React.FC = () => {
                       <div className="absolute right-0 mt-2 w-32 bg-white rounded-xl border border-zinc-200 shadow-xl z-50 overflow-hidden">
                         <button
                           onClick={() => {
+                            setEditingNote(note);
+                            setIsModalOpen(true);
+                            setActiveNoteMenu(null);
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs text-zinc-600 hover:bg-zinc-50 transition-colors font-medium border-b border-zinc-50"
+                        >
+                          Edit Note
+                        </button>
+                        <button
+                          onClick={() => {
                             setNoteToDelete(note.id);
                             setActiveNoteMenu(null);
                           }}
@@ -283,8 +318,11 @@ export const ClinicalNotes: React.FC = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="New Clinical Note"
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingNote(null);
+        }}
+        title={editingNote ? "Edit Clinical Note" : "New Clinical Note"}
         size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -331,11 +369,14 @@ export const ClinicalNotes: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
+            <Button variant="secondary" onClick={() => {
+              setIsModalOpen(false);
+              setEditingNote(null);
+            }} type="button">
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Clinical Note'}
+              {isSubmitting ? 'Saving...' : editingNote ? 'Update Clinical Note' : 'Save Clinical Note'}
             </Button>
           </div>
         </form>

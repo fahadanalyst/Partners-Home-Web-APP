@@ -232,7 +232,7 @@ export const TreatmentAdministrationRecord: React.FC = () => {
               <h3>Patient Info</h3>
             </div>
             <div className="space-y-2">
-              <input {...register('patient.name')} placeholder="Patient Name" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              <input {...register('patient.name')} placeholder="Patient Name *" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
           </div>
           <div className="space-y-4">
@@ -241,8 +241,8 @@ export const TreatmentAdministrationRecord: React.FC = () => {
               <h3>Period</h3>
             </div>
             <div className="flex gap-4">
-              <input {...register('month')} placeholder="Month" className="flex-1 px-4 py-2 rounded-xl border border-zinc-200" />
-              <input {...register('year')} placeholder="Year" className="w-24 px-4 py-2 rounded-xl border border-zinc-200" />
+              <input {...register('month')} placeholder="Month *" className="flex-1 px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
+              <input type="number" {...register('year')} placeholder="Year *" className="w-24 px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
           </div>
         </div>

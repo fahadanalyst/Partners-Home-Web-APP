@@ -61,13 +61,14 @@ export const Dashboard: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [activityData, setActivityData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('7');
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     checkConnection();
     fetchDashboardData();
-  }, []);
+  }, [timeRange]);
 
   const checkConnection = async () => {
     const status = await testSupabaseConnection();
@@ -415,31 +416,32 @@ ON CONFLICT (name) DO UPDATE SET
         .limit(4);
 
       // 5. Fetch Activity Data for Chart (Aggregate from DB)
+      const rangeDays = parseInt(timeRange);
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const activityRange = Array.from({ length: rangeDays }).map((_, i) => {
         const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
+        d.setDate(d.getDate() - (rangeDays - 1 - i));
         return {
           date: d.toISOString().split('T')[0],
-          name: days[d.getDay()],
+          name: rangeDays <= 7 ? days[d.getDay()] : d.getDate().toString(),
           visits: 0,
           forms: 0
         };
       });
 
-      // Fetch visits for last 7 days
+      // Fetch visits for range
       const { data: recentVisits } = await supabase
         .from('visits')
         .select('scheduled_at')
-        .gte('scheduled_at', last7Days[0].date);
+        .gte('scheduled_at', activityRange[0].date);
 
-      // Fetch forms for last 7 days
+      // Fetch forms for range
       const { data: recentForms } = await supabase
         .from('form_responses')
         .select('created_at')
-        .gte('created_at', last7Days[0].date);
+        .gte('created_at', activityRange[0].date);
 
-      const activityData = last7Days.map(day => {
+      const activityData = activityRange.map(day => {
         const dayVisits = recentVisits?.filter(v => v.scheduled_at.startsWith(day.date)).length || 0;
         const dayForms = recentForms?.filter(f => f.created_at.startsWith(day.date)).length || 0;
         return {
@@ -543,9 +545,13 @@ ON CONFLICT (name) DO UPDATE SET
           <div className="bg-white p-8 rounded-3xl border border-zinc-200 shadow-sm">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-bold text-zinc-900">Clinical Activity</h3>
-              <select className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-sm outline-none">
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
+              <select 
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+                className="bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-sm outline-none"
+              >
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
               </select>
             </div>
             <div className="h-80">
@@ -585,12 +591,25 @@ ON CONFLICT (name) DO UPDATE SET
               <h4 className="text-lg font-bold">New Care Plan</h4>
               <p className="text-white/70 text-sm mt-1">Develop or update MassHealth GAFC Care Plan.</p>
             </Link>
+            <Link to="/compliance" className="group bg-purple-600 p-6 rounded-3xl text-white shadow-lg shadow-purple-900/20 hover:scale-[1.02] transition-all">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-white/10 rounded-2xl">
+                  <ShieldCheck size={24} />
+                </div>
+                <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <h4 className="text-lg font-bold">Compliance Dashboard</h4>
+              <p className="text-white/70 text-sm mt-1">Review clinical compliance and audit logs.</p>
+            </Link>
           </div>
         </div>
 
         <div className="space-y-8">
           <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-            <h3 className="text-lg font-bold text-zinc-900 mb-6">Recent Activity</h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-zinc-900">Recent Activity</h3>
+              <Link to="/compliance" className="text-xs text-partners-blue-dark hover:underline">View All</Link>
+            </div>
             <div className="space-y-6">
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (

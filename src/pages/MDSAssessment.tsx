@@ -240,8 +240,8 @@ export const MDSAssessment: React.FC = () => {
       >
         <div className="flex justify-end">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700">Assessment Date</label>
-            <input type="date" {...register('assessmentDate')} className="px-4 py-2 rounded-xl border border-zinc-200" />
+            <label className="text-sm font-medium text-zinc-700">Assessment Date <span className="text-red-500">*</span></label>
+            <input type="date" {...register('assessmentDate')} className="px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
           </div>
         </div>
 
@@ -253,17 +253,17 @@ export const MDSAssessment: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-700">Patient Name</label>
-              <input {...register('patient.name')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              <label className="text-sm font-medium text-zinc-700">Patient Name <span className="text-red-500">*</span></label>
+              <input {...register('patient.name')} placeholder="Enter patient name" className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-zinc-700">Date of Birth</label>
-                <input type="date" {...register('patient.dob')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                <input type="date" {...register('patient.dob')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-zinc-700">Gender</label>
-                <select {...register('patient.gender')} className="w-full px-4 py-2 rounded-xl border border-zinc-200">
+                <select {...register('patient.gender')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none">
                   <option value="">Select...</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
