@@ -495,10 +495,13 @@ export interface Visit {
   patient_id: string;
   staff_id: string;
   scheduled_at: string;
-  status: 'scheduled' | 'in-progress' | 'completed' | 'reviewed' | 'approved' | 'archived';
+  start_time: string;
+  end_time: string;
+  status: 'Open' | 'Assigned' | 'Canceled' | 'Verified';
+  location: string;
   notes?: string;
-  patient?: Patient;
-  staff?: Profile;
+  patient: Patient;
+  staff: Profile;
 }
 
 export interface ProgressNote {
