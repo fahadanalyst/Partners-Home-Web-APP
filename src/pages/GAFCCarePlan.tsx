@@ -6,9 +6,9 @@ import * as z from 'zod';
 import { Button } from '../components/Button';
 import { ClipboardList, Plus, Trash2, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
-import { exportToPDF } from '../utils/pdfExport';
-
+import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
 
 const adlLevels = ['Independent', 'Supervision', 'Partial Assist', 'Full Assist'] as const;
@@ -119,7 +119,7 @@ export const GAFCCarePlan: React.FC = () => {
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
-  const { register, control, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<CarePlanValues>({
+  const { register, control, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<CarePlanValues>({
     resolver: zodResolver(carePlanSchema),
     defaultValues: {
       memberInfo: { interpreterNeeded: 'No' },
@@ -328,14 +328,19 @@ export const GAFCCarePlan: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
-    if (!formRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      await exportToPDF(formRef.current, `GAFC_Care_Plan_${new Date().toISOString().split('T')[0]}.pdf`);
+      const formData = getValues();
+      const success = await generateFormPDF(FORM_NAME, formData);
+      
+      if (!success && formRef.current) {
+        // Fallback to old method if no template exists
+        const { exportToPDF } = await import('../utils/pdfExport');
+        await exportToPDF(formRef.current, `GAFC_Care_Plan_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again or use the browser print feature.');
-      if (formRef.current) formRef.current.classList.remove('pdf-mode');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -348,14 +353,17 @@ export const GAFCCarePlan: React.FC = () => {
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
-            <div className="p-2 bg-partners-blue-light/10 rounded-xl">
-              <ClipboardList className="text-partners-blue-light" size={28} />
-            </div>
-            GAFC CARE PLAN
-          </h2>
-          <p className="text-partners-gray text-lg">Comprehensive MassHealth GAFC Care Plan Template.</p>
+        <div className="flex items-center gap-6">
+          <Logo showText size={64} />
+          <div className="space-y-1">
+            <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
+              <div className="p-2 bg-partners-blue-light/10 rounded-xl">
+                <ClipboardList className="text-partners-blue-light" size={28} />
+              </div>
+              GAFC CARE PLAN
+            </h2>
+            <p className="text-partners-gray text-lg">Comprehensive MassHealth GAFC Care Plan Template.</p>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row items-end gap-4 w-full lg:w-auto no-print">

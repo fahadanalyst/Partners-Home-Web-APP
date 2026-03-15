@@ -69,7 +69,7 @@ export const Compliance: React.FC = () => {
         .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(50);
 
       setStats([
         { 
@@ -274,7 +274,7 @@ export const Compliance: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="h-12 bg-zinc-50 rounded-xl animate-pulse"></div>

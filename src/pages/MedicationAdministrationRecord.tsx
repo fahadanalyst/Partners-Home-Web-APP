@@ -6,9 +6,10 @@ import * as z from 'zod';
 import { Button } from '../components/Button';
 import { Pill, Save, Send, Plus, Trash2, Calendar, Clock, User, ArrowLeft, Loader2, FileText, Download } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
+import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
-import { exportToPDF } from '../utils/pdfExport';
 
 const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
 const FORM_NAME = 'Medication Administration Record (MAR)';
@@ -43,7 +44,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
 
-  const { register, handleSubmit, setValue, watch, control, reset, formState: { errors, isSubmitting } } = useForm<MARFormValues>({
+  const { register, handleSubmit, setValue, watch, control, reset, getValues, formState: { errors, isSubmitting } } = useForm<MARFormValues>({
     resolver: zodResolver(marSchema),
     defaultValues: {
       month: new Date().toLocaleString('default', { month: 'long' }),
@@ -96,13 +97,19 @@ export const MedicationAdministrationRecord: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
-    if (!formRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      await exportToPDF(formRef.current, `MAR_${new Date().toISOString().split('T')[0]}.pdf`);
+      const formData = getValues();
+      const success = await generateFormPDF(FORM_NAME, formData);
+      
+      if (!success && formRef.current) {
+        // Fallback to old method if no template exists
+        const { exportToPDF } = await import('../utils/pdfExport');
+        await exportToPDF(formRef.current, `MAR_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again or use the browser print feature.');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -196,12 +203,15 @@ export const MedicationAdministrationRecord: React.FC = () => {
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-            <Pill className="text-partners-green" />
-            Medication Administration Record (MAR)
-          </h2>
-          <p className="text-partners-gray">Monthly tracking of medication administration.</p>
+        <div className="flex items-center gap-6">
+          <Logo className="h-16 w-auto" />
+          <div>
+            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <Pill className="text-partners-green" />
+              Medication Administration Record (MAR)
+            </h2>
+            <p className="text-partners-gray">Monthly tracking of medication administration.</p>
+          </div>
         </div>
         <div className="flex gap-3 no-print">
           <Button 
@@ -211,16 +221,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
             disabled={isGeneratingPDF}
           >
             {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
-            PDF
-          </Button>
-          <Button 
-            variant="secondary" 
-            type="button" 
-            onClick={onSaveDraft}
-            disabled={isSubmitting || isSavingDraft}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {isSavingDraft ? 'Saving...' : 'Save Draft'}
+            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
             type="button"

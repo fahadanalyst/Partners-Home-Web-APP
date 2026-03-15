@@ -7,9 +7,10 @@ import { Button } from '../components/Button';
 import { FileText, Printer, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
-import { exportToPDF } from '../utils/pdfExport';
-
+import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
+
+import { Logo } from '../components/Logo';
 
 const adlLevels = ['Independent', 'Needs Cueing', 'Needs Assistance', 'Dependent'] as const;
 
@@ -94,11 +95,12 @@ export const GAFCProgressNote: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlPatientId = searchParams.get('patientId');
+  const visitIdFromUrl = searchParams.get('visitId');
   const [patientId, setPatientId] = useState<string | null>(urlPatientId);
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<GAFCFormValues>({
+  const { register, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<GAFCFormValues>({
     resolver: zodResolver(gafcSchema),
     defaultValues: {
       visitDate: new Date().toISOString().split('T')[0],
@@ -256,6 +258,7 @@ export const GAFCProgressNote: React.FC = () => {
           .update({
             data: data,
             status: status,
+            visit_id: visitIdFromUrl || undefined,
             updated_at: new Date().toISOString()
           })
           .eq('id', editId)
@@ -272,6 +275,7 @@ export const GAFCProgressNote: React.FC = () => {
             form_id: currentFormId,
             patient_id: patientId,
             staff_id: profile.id,
+            visit_id: visitIdFromUrl || null,
             data: data,
             status: status
           }])
@@ -327,14 +331,19 @@ export const GAFCProgressNote: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
-    if (!formRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      await exportToPDF(formRef.current, `GAFC_Progress_Note_${new Date().toISOString().split('T')[0]}.pdf`);
+      const formData = getValues();
+      const success = await generateFormPDF(FORM_NAME, formData);
+      
+      if (!success && formRef.current) {
+        // Fallback to old method if no template exists
+        const { exportToPDF } = await import('../utils/pdfExport');
+        await exportToPDF(formRef.current, `GAFC_Progress_Note_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again or use the browser print feature.');
-      if (formRef.current) formRef.current.classList.remove('pdf-mode');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -347,14 +356,19 @@ export const GAFCProgressNote: React.FC = () => {
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
-            <div className="p-2 bg-partners-green/10 rounded-xl">
-              <FileText className="text-partners-green" size={28} />
-            </div>
-            GAFC Progress Note Form
-          </h2>
-          <p className="text-partners-gray text-lg">Complete the monthly clinical progress note.</p>
+        <div className="flex items-center gap-6">
+          <div className="hidden sm:block">
+            <Logo size={64} />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
+              <div className="p-2 bg-partners-green/10 rounded-xl sm:hidden">
+                <FileText className="text-partners-green" size={28} />
+              </div>
+              GAFC Progress Note Form
+            </h2>
+            <p className="text-partners-gray text-lg">Complete the monthly clinical progress note.</p>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row items-end gap-4 w-full lg:w-auto no-print">

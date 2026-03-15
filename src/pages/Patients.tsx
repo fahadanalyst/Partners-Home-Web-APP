@@ -7,6 +7,7 @@ import {
   Plus, 
   MoreVertical, 
   Trash2,
+  Edit2,
   UserPlus,
   Filter,
   ArrowRight,
@@ -35,6 +36,7 @@ const patientSchema = z.object({
   address: z.string().optional(),
   insurance_id: z.string().optional(),
   ssn_encrypted: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -44,8 +46,13 @@ interface Patient {
   first_name: string;
   last_name: string;
   dob: string;
+  gender: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  insurance_id: string | null;
   ssn_encrypted: string | null;
-  status: string;
+  status: 'active' | 'inactive';
   created_at: string;
   last_visit?: string;
 }
@@ -55,14 +62,30 @@ export const Patients: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
+  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema)
   });
+
+  const openEditModal = (patient: Patient) => {
+    setEditingPatient(patient);
+    setValue('first_name', patient.first_name);
+    setValue('last_name', patient.last_name);
+    setValue('dob', patient.dob);
+    setValue('gender', patient.gender);
+    setValue('phone', patient.phone || '');
+    setValue('email', patient.email || '');
+    setValue('address', patient.address || '');
+    setValue('insurance_id', patient.insurance_id || '');
+    setValue('ssn_encrypted', patient.ssn_encrypted || '');
+    setValue('status', patient.status);
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     fetchPatients();
@@ -117,8 +140,7 @@ export const Patients: React.FC = () => {
 
   const onSubmit = async (data: PatientFormValues) => {
     try {
-      // We use a safe insert that doesn't depend on columns that might be missing
-      const insertData: any = {
+      const patientData: any = {
         first_name: data.first_name,
         last_name: data.last_name,
         dob: data.dob,
@@ -127,33 +149,34 @@ export const Patients: React.FC = () => {
         email: data.email,
         address: data.address,
         insurance_id: data.insurance_id,
-        ssn_encrypted: data.ssn_encrypted
+        ssn_encrypted: data.ssn_encrypted,
+        status: data.status || 'active'
       };
 
-      console.log('Patients: Attempting to insert patient data:', insertData);
-      const { data: response, error } = await supabase
-        .from('patients')
-        .insert([insertData])
-        .select();
-
-      if (error) {
-        console.error('Patients: Supabase insert error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        throw error;
+      if (editingPatient) {
+        const { error } = await supabase
+          .from('patients')
+          .update(patientData)
+          .eq('id', editingPatient.id);
+        
+        if (error) throw error;
+        setNotification({ type: 'success', message: 'Patient updated successfully!' });
+      } else {
+        const { error } = await supabase
+          .from('patients')
+          .insert([patientData]);
+        
+        if (error) throw error;
+        setNotification({ type: 'success', message: 'Patient added successfully!' });
       }
-      
-      console.log('Patients: Successfully added patient:', response);
+
       setIsModalOpen(false);
+      setEditingPatient(null);
       reset();
       fetchPatients();
-      setNotification({ type: 'success', message: 'Patient added successfully!' });
     } catch (error: any) {
-      console.error('Error adding patient:', error);
-      setNotification({ type: 'error', message: 'Error adding patient: ' + (error.message || 'Check console for details') });
+      console.error('Error saving patient:', error);
+      setNotification({ type: 'error', message: 'Error saving patient: ' + (error.message || 'Check console for details') });
     }
   };
 
@@ -167,8 +190,9 @@ export const Patients: React.FC = () => {
         .eq('id', patientToDelete);
 
       if (error) throw error;
-
-      setPatients(patients.filter(p => p.id !== patientToDelete));
+      
+      // Refresh data from server to ensure sync
+      await fetchPatients();
       setNotification({ type: 'success', message: 'Patient record deleted successfully.' });
     } catch (error: any) {
       console.error('Error deleting patient:', error);
@@ -294,6 +318,18 @@ export const Patients: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => openEditModal(patient)}
+                        className="p-2 text-zinc-400 hover:text-partners-blue-dark hover:bg-partners-blue-dark/5 rounded-xl transition-colors"
+                        title="Edit Patient"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <Link to={`/patient-profile/${patient.id}`}>
+                        <Button variant="ghost" size="sm" className="rounded-full text-xs">
+                          Profile
+                        </Button>
+                      </Link>
                       <Link to={`/progress-note?patientId=${patient.id}`}>
                         <Button variant="ghost" size="sm" className="rounded-full text-xs">
                           Progress Note
@@ -390,7 +426,7 @@ export const Patients: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Add New Patient"
+        title={editingPatient ? "Edit Patient" : "Add New Patient"}
         size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -498,6 +534,18 @@ export const Patients: React.FC = () => {
                 />
               </div>
             </div>
+            {editingPatient && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Status</label>
+                <select
+                  {...register('status')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
@@ -505,7 +553,7 @@ export const Patients: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Adding...' : 'Add Patient'}
+              {isSubmitting ? 'Saving...' : editingPatient ? 'Update Patient' : 'Add Patient'}
             </Button>
           </div>
         </form>

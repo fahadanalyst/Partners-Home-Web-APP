@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { 
   Calendar as CalendarIcon, 
@@ -6,11 +7,14 @@ import {
   MapPin, 
   User, 
   Plus,
+  Search,
+  Loader2,
   ChevronLeft,
   ChevronRight,
   Filter,
   FileText,
   AlertCircle,
+  CheckCircle2,
   X
 } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -24,8 +28,11 @@ const visitSchema = z.object({
   patient_id: z.string().min(1, 'Required'),
   staff_id: z.string().min(1, 'Required'),
   scheduled_at: z.string().min(1, 'Required'),
+  start_time: z.string().min(1, 'Required'),
+  end_time: z.string().min(1, 'Required'),
   location: z.string().min(1, 'Required'),
   notes: z.string().optional(),
+  status: z.enum(['Open', 'Assigned', 'Canceled', 'Verified']),
 });
 
 type VisitFormValues = z.infer<typeof visitSchema>;
@@ -35,7 +42,9 @@ interface Visit {
   patient_id: string;
   staff_id: string;
   scheduled_at: string;
-  status: string;
+  start_time: string | null;
+  end_time: string | null;
+  status: 'Open' | 'Assigned' | 'Canceled' | 'Verified';
   location: string;
   patient: {
     first_name: string;
@@ -69,9 +78,16 @@ export const Schedule: React.FC = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [filteredPatientsForSelect, setFilteredPatients] = useState<Patient[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<VisitFormValues>({
-    resolver: zodResolver(visitSchema)
+  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<VisitFormValues>({
+    resolver: zodResolver(visitSchema),
+    defaultValues: {
+      status: 'Open'
+    }
   });
 
   useEffect(() => {
@@ -89,6 +105,7 @@ export const Schedule: React.FC = () => {
         supabase.from('profiles').select('id, full_name').order('full_name')
       ]);
       setPatients(patientsRes.data || []);
+      setFilteredPatients(patientsRes.data || []);
       setStaffList(staffRes.data || []);
     } catch (error) {
       console.error('Error fetching form data:', error);
@@ -129,13 +146,15 @@ export const Schedule: React.FC = () => {
         .from('visits')
         .insert([{
           ...data,
-          status: 'scheduled'
+          status: data.status || 'Open'
         }]);
 
       if (error) throw error;
       
       setIsModalOpen(false);
       reset();
+      setSelectedPatientId(null);
+      setPatientSearchTerm('');
       fetchVisits();
       alert('Visit scheduled successfully!');
     } catch (error: any) {
@@ -144,8 +163,26 @@ export const Schedule: React.FC = () => {
     }
   };
 
-  const updateVisitStatus = async (visitId: string, newStatus: string) => {
+  const updateVisitStatus = async (visitId: string, newStatus: 'Open' | 'Assigned' | 'Canceled' | 'Verified') => {
     try {
+      if (newStatus === 'Verified') {
+        // Check if there are any notes for this visit in either clinical_notes or form_responses
+        const [notesRes, formsRes] = await Promise.all([
+          supabase.from('clinical_notes').select('id').eq('visit_id', visitId),
+          supabase.from('form_responses').select('id').eq('visit_id', visitId).eq('status', 'submitted')
+        ]);
+
+        if (notesRes.error) throw notesRes.error;
+        if (formsRes.error) throw formsRes.error;
+
+        const hasNotes = (notesRes.data && notesRes.data.length > 0) || (formsRes.data && formsRes.data.length > 0);
+
+        if (!hasNotes) {
+          alert('Cannot verify shift: Staff has not completed all notes for this shift.');
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('visits')
         .update({ status: newStatus })
@@ -203,7 +240,7 @@ export const Schedule: React.FC = () => {
             
             {isFilterOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-zinc-100 z-10 p-2">
-                {['all', 'scheduled', 'pending', 'completed', 'cancelled'].map((status) => (
+                {['all', 'Open', 'Assigned', 'Canceled', 'Verified'].map((status) => (
                   <button
                     key={status}
                     onClick={() => {
@@ -282,20 +319,20 @@ export const Schedule: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="opacity-70">Completed</span>
+                <span className="opacity-70">Verified</span>
                 <span className="font-bold">
                   {visits.filter(v => 
                     new Date(v.scheduled_at).toDateString() === selectedDate.toDateString() && 
-                    v.status === 'completed'
+                    v.status === 'Verified'
                   ).length}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="opacity-70">Pending</span>
+                <span className="opacity-70">Assigned</span>
                 <span className="font-bold">
                   {visits.filter(v => 
                     new Date(v.scheduled_at).toDateString() === selectedDate.toDateString() && 
-                    v.status === 'pending'
+                    v.status === 'Assigned'
                   ).length}
                 </span>
               </div>
@@ -335,7 +372,7 @@ export const Schedule: React.FC = () => {
                         <h4 className="font-bold text-zinc-900 truncate">{visit.patient.last_name}, {visit.patient.first_name}</h4>
                         <p className="text-xs text-zinc-500 flex items-center gap-1">
                           <Clock size={12} />
-                          {new Date(visit.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {visit.start_time || '--'} - {visit.end_time || '--'}
                         </p>
                       </div>
                     </div>
@@ -354,9 +391,9 @@ export const Schedule: React.FC = () => {
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      visit.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
-                      visit.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                      visit.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
+                      visit.status === 'Verified' ? 'bg-emerald-100 text-emerald-700' : 
+                      visit.status === 'Assigned' ? 'bg-amber-100 text-amber-700' : 
+                      visit.status === 'Canceled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
                     }`}>
                       {visit.status}
                     </span>
@@ -403,9 +440,15 @@ export const Schedule: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Scheduled For</p>
-                <div className="flex items-center gap-2 text-zinc-700">
-                  <CalendarIcon size={16} className="text-partners-blue-dark" />
-                  {new Date(selectedVisit.scheduled_at).toLocaleDateString()} at {new Date(selectedVisit.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className="flex flex-col gap-1 text-zinc-700">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon size={16} className="text-partners-blue-dark" />
+                    {new Date(selectedVisit.scheduled_at).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock size={16} className="text-partners-blue-dark" />
+                    {selectedVisit.start_time || '--'} - {selectedVisit.end_time || '--'}
+                  </div>
                 </div>
               </div>
 
@@ -429,9 +472,9 @@ export const Schedule: React.FC = () => {
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Current Status</p>
                 <div className="flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    selectedVisit.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
-                    selectedVisit.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                    selectedVisit.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
+                    selectedVisit.status === 'Verified' ? 'bg-emerald-100 text-emerald-700' : 
+                    selectedVisit.status === 'Assigned' ? 'bg-amber-100 text-amber-700' : 
+                    selectedVisit.status === 'Canceled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
                   }`}>
                     {selectedVisit.status}
                   </span>
@@ -440,9 +483,29 @@ export const Schedule: React.FC = () => {
             </div>
 
             <div className="space-y-2 pt-4 border-t border-zinc-100">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Actions</p>
+              <div className="flex flex-wrap gap-2">
+                <Link 
+                  to={`/clinical-note-form?patientId=${selectedVisit.patient_id}&visitId=${selectedVisit.id}`}
+                  className="inline-flex items-center px-4 py-2 bg-partners-blue-dark text-white rounded-xl text-sm font-bold hover:bg-blue-800 transition-colors"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Clinical Note
+                </Link>
+                <Link 
+                  to={`/progress-note?patientId=${selectedVisit.patient_id}&visitId=${selectedVisit.id}`}
+                  className="inline-flex items-center px-4 py-2 bg-partners-green text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-colors"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  GAFC Progress Note
+                </Link>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-zinc-100">
               <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Update Status</p>
               <div className="flex flex-wrap gap-2">
-                {['scheduled', 'pending', 'completed', 'cancelled'].map((status) => (
+                {(['Open', 'Assigned', 'Canceled', 'Verified'] as const).map((status) => (
                   <Button
                     key={status}
                     variant={selectedVisit.status === status ? 'primary' : 'secondary'}
@@ -467,22 +530,68 @@ export const Schedule: React.FC = () => {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedPatientId(null);
+          setPatientSearchTerm('');
+          reset();
+        }}
         title="Schedule New Visit"
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-zinc-700">Patient</label>
-            <select
-              {...register('patient_id')}
-              className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-            >
-              <option value="">Select Patient</option>
-              {patients.map(p => (
-                <option key={p.id} value={p.id}>{p.last_name}, {p.first_name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search patient..."
+                  value={patientSearchTerm}
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  onChange={(e) => {
+                    const term = e.target.value;
+                    setPatientSearchTerm(term);
+                    const filtered = patients.filter(p => 
+                      `${p.first_name} ${p.last_name}`.toLowerCase().includes(term.toLowerCase())
+                    );
+                    setFilteredPatients(filtered);
+                    setShowPatientDropdown(true);
+                  }}
+                  onFocus={() => setShowPatientDropdown(true)}
+                />
+              </div>
+              
+              {showPatientDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl max-h-60 overflow-y-auto custom-scrollbar">
+                  {filteredPatientsForSelect.length === 0 ? (
+                    <div className="p-4 text-sm text-zinc-500 text-center">No patients found</div>
+                  ) : (
+                    filteredPatientsForSelect.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={clsx(
+                          "w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 transition-colors flex items-center justify-between",
+                          selectedPatientId === p.id ? "bg-partners-blue-dark/5 text-partners-blue-dark font-bold" : "text-zinc-700"
+                        )}
+                        onClick={() => {
+                          setValue('patient_id', p.id);
+                          setSelectedPatientId(p.id);
+                          setPatientSearchTerm(`${p.first_name} ${p.last_name}`);
+                          setShowPatientDropdown(false);
+                        }}
+                      >
+                        <span>{p.last_name}, {p.first_name}</span>
+                        {selectedPatientId === p.id && <CheckCircle2 size={14} />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <input type="hidden" {...register('patient_id')} />
             {errors.patient_id && <p className="text-xs text-red-500">{errors.patient_id.message}</p>}
           </div>
 
@@ -501,16 +610,56 @@ export const Schedule: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700">Scheduled Date & Time</label>
+            <label className="text-sm font-medium text-zinc-700">Scheduled Date</label>
             <div className="relative">
               <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
               <input
-                type="datetime-local"
+                type="date"
                 {...register('scheduled_at')}
                 className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
               />
             </div>
             {errors.scheduled_at && <p className="text-xs text-red-500">{errors.scheduled_at.message}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700">Start Time</label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                <input
+                  type="time"
+                  {...register('start_time')}
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
+              {errors.start_time && <p className="text-xs text-red-500">{errors.start_time.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700">End Time</label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                <input
+                  type="time"
+                  {...register('end_time')}
+                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
+              {errors.end_time && <p className="text-xs text-red-500">{errors.end_time.message}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700">Status</label>
+            <select
+              {...register('status')}
+              className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+            >
+              <option value="Open">Open</option>
+              <option value="Assigned">Assigned</option>
+              <option value="Canceled">Canceled</option>
+              <option value="Verified">Verified</option>
+            </select>
           </div>
 
           <div className="space-y-2">

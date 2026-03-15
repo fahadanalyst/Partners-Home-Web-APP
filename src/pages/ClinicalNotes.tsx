@@ -167,8 +167,8 @@ export const ClinicalNotes: React.FC = () => {
       
       console.log('ClinicalNotes: Delete successful, status:', status);
       
-      // Optimistically update UI or just refetch
-      setNotes(prev => prev.filter(n => n.id !== id));
+      // Refresh data from server to ensure sync
+      await fetchNotes();
       alert('Note deleted successfully');
     } catch (error: any) {
       console.error('ClinicalNotes: Caught error during delete:', error);

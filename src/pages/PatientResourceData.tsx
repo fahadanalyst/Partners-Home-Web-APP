@@ -5,9 +5,12 @@ import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
 import { UserRound, Save, Send, Users, Phone, Shield, HeartPulse, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { exportToPDF } from '../utils/pdfExport';
+import { generateFormPDF } from '../services/pdfService';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
 const FORM_NAME = 'Patient Resource Data';
@@ -68,7 +71,7 @@ export const PatientResourceData: React.FC = () => {
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<ResourceFormValues>({
+  const { register, handleSubmit, setValue, getValues, watch, reset, formState: { errors, isSubmitting } } = useForm<ResourceFormValues>({
     resolver: zodResolver(resourceSchema),
     defaultValues: {
       demographics: { raceEthnicity: [] },
@@ -118,14 +121,18 @@ export const PatientResourceData: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
-    if (!formRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      await exportToPDF(formRef.current, `Patient_Resource_Data_${new Date().toISOString().split('T')[0]}.pdf`);
+      const formData = getValues();
+      const success = await generateFormPDF('Patient Resource Data', formData);
+      
+      if (!success && formRef.current) {
+        const { exportToPDF } = await import('../utils/pdfExport');
+        await exportToPDF(formRef.current, `Patient_Resource_Data_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again or use the browser print feature.');
-      if (formRef.current) formRef.current.classList.remove('pdf-mode');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -190,12 +197,15 @@ export const PatientResourceData: React.FC = () => {
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-            <UserRound className="text-partners-green" />
-            Patient Resource Data Form
-          </h2>
-          <p className="text-partners-gray">Demographic information and health/community resources.</p>
+        <div className="flex items-center gap-4">
+          <Logo showText size={48} />
+          <div>
+            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <UserRound className="text-partners-green" />
+              Patient Resource Data Form
+            </h2>
+            <p className="text-partners-gray">Demographic information and health/community resources.</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
           <Button 

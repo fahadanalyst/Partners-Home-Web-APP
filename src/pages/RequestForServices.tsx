@@ -6,9 +6,10 @@ import * as z from 'zod';
 import { Button } from '../components/Button';
 import { ClipboardList, Save, Send, User, MapPin, Phone, Stethoscope, AlertCircle, ArrowLeft, Loader2, Download } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
+import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
-import { exportToPDF } from '../utils/pdfExport';
 
 const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
 const FORM_NAME = 'Request for Services (RFS-1)';
@@ -90,7 +91,7 @@ export const RequestForServices: React.FC = () => {
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } = useForm<RFSFormValues>({
+  const { register, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<RFSFormValues>({
     resolver: zodResolver(rfsSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
@@ -148,14 +149,19 @@ export const RequestForServices: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
-    if (!formRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      await exportToPDF(formRef.current, `Request_For_Services_${new Date().toISOString().split('T')[0]}.pdf`);
+      const formData = getValues();
+      const success = await generateFormPDF(FORM_NAME, formData);
+      
+      if (!success && formRef.current) {
+        // Fallback to old method if no template exists
+        const { exportToPDF } = await import('../utils/pdfExport');
+        await exportToPDF(formRef.current, `Request_For_Services_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again or use the browser print feature.');
-      if (formRef.current) formRef.current.classList.remove('pdf-mode');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -241,12 +247,15 @@ export const RequestForServices: React.FC = () => {
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-            <ClipboardList className="text-partners-green" />
-            Request for Services (RFS-1)
-          </h2>
-          <p className="text-partners-gray">Clinical eligibility determination for requested services.</p>
+        <div className="flex items-center gap-4">
+          <Logo showText size={48} />
+          <div>
+            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <ClipboardList className="text-partners-green" />
+              Request for Services (RFS-1)
+            </h2>
+            <p className="text-partners-gray">Clinical eligibility determination for requested services.</p>
+          </div>
         </div>
         <div className="flex gap-3 no-print">
           <Button 

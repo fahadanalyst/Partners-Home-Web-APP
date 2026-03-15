@@ -151,10 +151,18 @@ BEGIN
         END IF;
     END IF;
 
+    -- Responses table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='form_responses' AND column_name='visit_id') THEN
+        ALTER TABLE public.form_responses ADD COLUMN visit_id UUID REFERENCES public.visits(id) ON DELETE SET NULL;
+    END IF;
+
     -- Clinical Notes table columns
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='clinical_notes') THEN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clinical_notes' AND column_name='note_type') THEN
             ALTER TABLE public.clinical_notes ADD COLUMN note_type TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clinical_notes' AND column_name='visit_id') THEN
+            ALTER TABLE public.clinical_notes ADD COLUMN visit_id UUID REFERENCES public.visits(id) ON DELETE SET NULL;
         END IF;
     END IF;
 
@@ -218,6 +226,21 @@ CREATE TABLE IF NOT EXISTS public.patients (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 5. Create Visits Table
+CREATE TABLE IF NOT EXISTS public.visits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE,
+    staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    scheduled_at TIMESTAMPTZ NOT NULL,
+    status TEXT CHECK (status IN ('scheduled', 'in-progress', 'completed', 'cancelled')) DEFAULT 'scheduled',
+    location TEXT,
+    notes TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.forms (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
@@ -233,6 +256,7 @@ CREATE TABLE IF NOT EXISTS public.form_responses (
     form_id UUID REFERENCES public.forms(id) ON DELETE CASCADE,
     patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE,
     staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    visit_id UUID REFERENCES public.visits(id) ON DELETE SET NULL,
     data JSONB NOT NULL,
     status TEXT CHECK (status IN ('draft', 'submitted')) DEFAULT 'draft',
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -265,6 +289,7 @@ ALTER TABLE public.forms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.form_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.signatures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.visits ENABLE ROW LEVEL SECURITY;
 
 -- 4. Create RLS Policies (Idempotent)
 DO $$ 
@@ -313,25 +338,8 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Staff insert files') THEN
         CREATE POLICY "Staff insert files" ON public.files FOR INSERT WITH CHECK (auth.role() = 'authenticated');
     END IF;
-END $$;
 
--- 5. Create Visits Table
-CREATE TABLE IF NOT EXISTS public.visits (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE,
-    staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    scheduled_at TIMESTAMPTZ NOT NULL,
-    status TEXT CHECK (status IN ('scheduled', 'in-progress', 'completed', 'cancelled')) DEFAULT 'scheduled',
-    location TEXT,
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.visits ENABLE ROW LEVEL SECURITY;
-
-DO $$ 
-BEGIN
+    -- Visits
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Visits viewable by authenticated') THEN
         CREATE POLICY "Visits viewable by authenticated" ON public.visits FOR SELECT USING (auth.role() = 'authenticated');
     END IF;
@@ -345,6 +353,7 @@ CREATE TABLE IF NOT EXISTS public.clinical_notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE,
     staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    visit_id UUID REFERENCES public.visits(id) ON DELETE SET NULL,
     note_type TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -363,7 +372,33 @@ BEGIN
     END IF;
 END $$;
 
--- 7. Force Schema Reload (PostgREST)
+-- 7. Create Medical Providers Table
+CREATE TABLE IF NOT EXISTS public.medical_providers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    facility_name TEXT NOT NULL,
+    address TEXT,
+    phone TEXT,
+    fax TEXT,
+    email TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.medical_providers ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Medical providers viewable by authenticated') THEN
+        CREATE POLICY "Medical providers viewable by authenticated" ON public.medical_providers FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Staff manage medical providers') THEN
+        CREATE POLICY "Staff manage medical providers" ON public.medical_providers FOR ALL USING (auth.role() = 'authenticated');
+    END IF;
+END $$;
+
+-- 8. Force Schema Reload (PostgREST)
 NOTIFY pgrst, 'reload schema';
 
 -- 8. Seed Forms
@@ -383,7 +418,63 @@ INSERT INTO public.forms (name, description, schema) VALUES
 ('Discharge Summary', 'Final documentation upon patient discharge', '{}'::jsonb)
 ON CONFLICT (name) DO UPDATE SET 
     description = EXCLUDED.description,
-    schema = COALESCE(public.forms.schema, '{}'::jsonb);`;
+    schema = COALESCE(public.forms.schema, '{}'::jsonb);
+
+-- 9. Audit Logs Table
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id),
+    action TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    record_id UUID,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Audit logs viewable by authenticated') THEN
+        CREATE POLICY "Audit logs viewable by authenticated" ON public.audit_logs FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+END $$;
+
+-- 10. Audit Log Triggers
+CREATE OR REPLACE FUNCTION public.log_audit_action()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.audit_logs (user_id, action, table_name, record_id, details)
+    VALUES (
+        auth.uid(),
+        TG_OP,
+        TG_TABLE_NAME,
+        CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END,
+        CASE 
+            WHEN TG_OP = 'INSERT' THEN jsonb_build_object('new', to_jsonb(NEW))
+            WHEN TG_OP = 'UPDATE' THEN jsonb_build_object('old', to_jsonb(OLD), 'new', to_jsonb(NEW))
+            ELSE jsonb_build_object('old', to_jsonb(OLD))
+        END
+    );
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Apply triggers to main tables
+DROP TRIGGER IF EXISTS audit_patients_trigger ON public.patients;
+CREATE TRIGGER audit_patients_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.patients
+FOR EACH ROW EXECUTE FUNCTION public.log_audit_action();
+
+DROP TRIGGER IF EXISTS audit_form_responses_trigger ON public.form_responses;
+CREATE TRIGGER audit_form_responses_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.form_responses
+FOR EACH ROW EXECUTE FUNCTION public.log_audit_action();
+
+DROP TRIGGER IF EXISTS audit_visits_trigger ON public.visits;
+CREATE TRIGGER audit_visits_trigger
+AFTER INSERT OR UPDATE OR DELETE ON public.visits
+FOR EACH ROW EXECUTE FUNCTION public.log_audit_action();`;
 
   const fetchDashboardData = async () => {
     try {
@@ -413,7 +504,7 @@ ON CONFLICT (name) DO UPDATE SET
         .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(4);
+        .limit(50);
 
       // 5. Fetch Activity Data for Chart (Aggregate from DB)
       const rangeDays = parseInt(timeRange);
@@ -610,7 +701,7 @@ ON CONFLICT (name) DO UPDATE SET
               <h3 className="text-lg font-bold text-zinc-900">Recent Activity</h3>
               <Link to="/compliance" className="text-xs text-partners-blue-dark hover:underline">View All</Link>
             </div>
-            <div className="space-y-6">
+            <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex gap-4 animate-pulse">

@@ -18,7 +18,9 @@ import { AdmissionAssessment } from './pages/AdmissionAssessment';
 import { DischargeSummary } from './pages/DischargeSummary';
 import { UserManagement } from './pages/UserManagement';
 import { Patients } from './pages/Patients';
+import { PatientProfile } from './pages/PatientProfile';
 import { Schedule } from './pages/Schedule';
+import { MedicalProviders } from './pages/MedicalProviders';
 import { ClinicalNotes } from './pages/ClinicalNotes';
 import { Compliance } from './pages/Compliance';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
@@ -294,6 +296,22 @@ export default function App() {
             element={
               <RoleProtectedRoute allowedRoles={['admin', 'manager', 'frontdesk', 'clinical_worker', 'nurse']}>
                 <Patients />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="patient-profile/:id" 
+            element={
+              <RoleProtectedRoute allowedRoles={['admin', 'manager', 'frontdesk', 'clinical_worker', 'nurse']}>
+                <PatientProfile />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="medical-providers" 
+            element={
+              <RoleProtectedRoute allowedRoles={['admin', 'manager', 'frontdesk', 'clinical_worker', 'nurse']}>
+                <MedicalProviders />
               </RoleProtectedRoute>
             } 
           />

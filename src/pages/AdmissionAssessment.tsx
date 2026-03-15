@@ -6,9 +6,10 @@ import * as z from 'zod';
 import { Button } from '../components/Button';
 import { FilePlus, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName } from '../services/supabase';
+import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
-import { exportToPDF } from '../utils/pdfExport';
 
 const admissionSchema = z.object({
   date: z.string().min(1, 'Required'),
@@ -28,7 +29,7 @@ export const AdmissionAssessment: React.FC = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<AdmissionValues>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, reset, getValues } = useForm<AdmissionValues>({
     resolver: zodResolver(admissionSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0]
@@ -93,12 +94,19 @@ export const AdmissionAssessment: React.FC = () => {
   };
 
   const handlePrint = async () => {
-    if (!formRef.current) return;
     try {
       setIsGeneratingPDF(true);
-      await exportToPDF(formRef.current, `Admission_Assessment_${new Date().toISOString().split('T')[0]}.pdf`);
+      const formData = getValues();
+      const success = await generateFormPDF('Admission Assessment', formData);
+      
+      if (!success && formRef.current) {
+        // Fallback to old method if no template exists
+        const { exportToPDF } = await import('../utils/pdfExport');
+        await exportToPDF(formRef.current, `Admission_Assessment_${new Date().toISOString().split('T')[0]}.pdf`);
+      }
     } catch (error) {
       console.error('PDF error:', error);
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -111,12 +119,15 @@ export const AdmissionAssessment: React.FC = () => {
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-            <FilePlus className="text-partners-green" />
-            Admission Assessment
-          </h2>
-          <p className="text-partners-gray">Initial patient admission evaluation.</p>
+        <div className="flex items-center gap-4">
+          <Logo showText size={48} />
+          <div>
+            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <FilePlus className="text-partners-green" />
+              Admission Assessment
+            </h2>
+            <p className="text-partners-gray">Initial patient admission evaluation.</p>
+          </div>
         </div>
         <div className="flex gap-3 no-print">
           <Button variant="secondary" type="button" onClick={handlePrint} disabled={isGeneratingPDF}>

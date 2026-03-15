@@ -18,6 +18,8 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import { ConfirmationModal } from '../components/ConfirmationModal';
+import { Button } from '../components/Button';
 import { format } from 'date-fns';
 import { clsx } from 'clsx';
 
@@ -134,6 +136,8 @@ export const ClinicalForms: React.FC = () => {
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchRecentSubmissions();
@@ -164,17 +168,23 @@ export const ClinicalForms: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this submission?')) return;
     try {
+      setIsDeleting(true);
       const { error } = await supabase
         .from('form_responses')
         .delete()
         .eq('id', id);
       if (error) throw error;
-      setRecentSubmissions(prev => prev.filter(s => s.id !== id));
+      
+      // Refresh data from server to ensure sync
+      await fetchRecentSubmissions();
       alert('Submission deleted successfully');
     } catch (error: any) {
       alert('Error deleting submission: ' + error.message);
+    } finally {
+      setIsDeleting(false);
+      setSubmissionToDelete(null);
+      setActiveMenu(null);
     }
   };
 
@@ -289,7 +299,7 @@ export const ClinicalForms: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                handleDelete(submission.id);
+                                setSubmissionToDelete(submission.id);
                                 setActiveMenu(null);
                               }}
                               className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors font-medium flex items-center gap-2"
@@ -316,6 +326,15 @@ export const ClinicalForms: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmationModal
+        isOpen={!!submissionToDelete}
+        onClose={() => setSubmissionToDelete(null)}
+        onConfirm={() => submissionToDelete && handleDelete(submissionToDelete)}
+        title="Delete Submission"
+        message="Are you sure you want to delete this form submission? This action cannot be undone."
+        confirmText="Delete Submission"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

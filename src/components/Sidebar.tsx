@@ -8,7 +8,8 @@ import {
   LogOut, 
   ShieldCheck,
   ClipboardList,
-  X
+  X,
+  Stethoscope
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['admin', 'manager', 'frontdesk', 'clinical_worker', 'reviewer', 'nurse'] },
     { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'manager', 'frontdesk', 'clinical_worker', 'nurse'] },
+    { icon: Stethoscope, label: 'Medical Providers', path: '/medical-providers', roles: ['admin', 'manager', 'frontdesk', 'clinical_worker', 'nurse'] },
     { icon: Calendar, label: 'Schedule', path: '/schedule', roles: ['admin', 'manager', 'frontdesk', 'clinical_worker'] },
     { icon: ClipboardList, label: 'Clinical Notes', path: '/notes', roles: ['admin', 'manager', 'clinical_worker', 'nurse'] },
     { icon: FileText, label: 'Clinical Forms', path: '/clinical-forms', roles: ['admin', 'manager', 'clinical_worker', 'nurse', 'reviewer'] },
