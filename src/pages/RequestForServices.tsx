@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { ClipboardList, Save, Send, User, MapPin, Phone, Stethoscope, AlertCircle, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { ClipboardList, Save, Send, User, MapPin, Phone, Stethoscope, AlertCircle, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Notification, NotificationType } from '../components/Notification';
 import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
@@ -146,6 +147,7 @@ export const RequestForServices: React.FC = () => {
 
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
@@ -161,7 +163,7 @@ export const RequestForServices: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -169,7 +171,7 @@ export const RequestForServices: React.FC = () => {
 
   const submitForm = async (data: RFSFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -223,11 +225,14 @@ export const RequestForServices: React.FC = () => {
         }
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Request for Services submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'Request for Services submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error('Request for Services: Caught error during submission:', error);
-      alert(`Error submitting form: ${error.message || 'Please try again.'}`);
+      setNotification({ type: 'error', message: `Error submitting form: ${error.message || 'Please try again.'}` });
     } finally {
       setIsSavingDraft(false);
       console.log('Request for Services: Submission process finished.');
@@ -263,11 +268,12 @@ export const RequestForServices: React.FC = () => {
             type="button" 
             onClick={handlePrint}
             disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
             )}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
@@ -275,6 +281,7 @@ export const RequestForServices: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -659,6 +666,13 @@ export const RequestForServices: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

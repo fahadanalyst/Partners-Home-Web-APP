@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { FileText, Send, User, Clock, Tag, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { FileText, Send, User, Clock, Tag, ArrowLeft, Loader2 } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
 import { Logo } from '../components/Logo';
+import { Notification, NotificationType } from '../components/Notification';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +41,7 @@ export const ClinicalNoteForm: React.FC = () => {
   const patientIdFromUrl = searchParams.get('patientId');
   const visitIdFromUrl = searchParams.get('visitId');
   const patientId = patientIdFromUrl || DUMMY_PATIENT_ID;
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<ClinicalNoteFormValues>({
     resolver: zodResolver(clinicalNoteSchema),
@@ -109,7 +111,7 @@ export const ClinicalNoteForm: React.FC = () => {
 
   const submitForm = async (data: ClinicalNoteFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -205,11 +207,14 @@ export const ClinicalNoteForm: React.FC = () => {
         console.log('Clinical Note: Signature inserted successfully');
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Clinical note submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'Clinical note submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error('Clinical Note: Caught error during submission:', error);
-      alert(`Error: ${error.message}`);
+      setNotification({ type: 'error', message: `Error: ${error.message}` });
     } finally {
       setIsSavingDraft(false);
       console.log('Clinical Note: Submission process finished.');
@@ -233,7 +238,7 @@ export const ClinicalNoteForm: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -262,11 +267,12 @@ export const ClinicalNoteForm: React.FC = () => {
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
             )}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
@@ -274,6 +280,7 @@ export const ClinicalNoteForm: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Note'}
@@ -364,6 +371,13 @@ export const ClinicalNoteForm: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

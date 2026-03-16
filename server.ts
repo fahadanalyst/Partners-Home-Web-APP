@@ -188,6 +188,40 @@ app.post("/api/admin/create-user", async (req, res) => {
     }
   });
 
+  // Patient: Create Endpoint (Bypasses RLS)
+  app.post("/api/patients/create", async (req, res) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('patients')
+        .insert([req.body])
+        .select();
+
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Patient Create Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Patient: Update Endpoint (Bypasses RLS)
+  app.post("/api/patients/update", async (req, res) => {
+    try {
+      const { id, ...patientData } = req.body;
+      const { data, error } = await supabaseAdmin
+        .from('patients')
+        .update(patientData)
+        .eq('id', id)
+        .select();
+
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Patient Update Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });

@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
+import { Notification, NotificationType } from '../components/Notification';
 import { generateFormPDF } from '../services/pdfService';
-import { FileText, Save, Send, Plus, Trash2, User, Stethoscope, Pill, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { FileText, Save, Send, Plus, Trash2, User, Stethoscope, Pill, ArrowLeft, Loader2 } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
 import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
@@ -47,6 +48,7 @@ export const PhysicianOrders: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, watch, control, reset, getValues, formState: { errors, isSubmitting } } = useForm<OrdersFormValues>({
     resolver: zodResolver(ordersSchema),
@@ -98,7 +100,7 @@ export const PhysicianOrders: React.FC = () => {
 
   const submitForm = async (data: OrdersFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -177,11 +179,14 @@ export const PhysicianOrders: React.FC = () => {
         console.log(`${FORM_NAME}: Signature inserted successfully`);
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Physician Orders submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'Physician Orders submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error(`${FORM_NAME}: Caught error during submission:`, error);
-      alert(`Error: ${error.message}`);
+      setNotification({ type: 'error', message: `Error: ${error.message}` });
     } finally {
       setIsSavingDraft(false);
       console.log(`${FORM_NAME}: Submission process finished.`);
@@ -210,7 +215,7 @@ export const PhysicianOrders: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -239,15 +244,16 @@ export const PhysicianOrders: React.FC = () => {
             type="button" 
             onClick={handlePrint}
             disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
-            className="no-print"
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
-            {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting || isSavingDraft}
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -387,6 +393,13 @@ export const PhysicianOrders: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

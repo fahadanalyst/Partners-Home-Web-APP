@@ -15,6 +15,7 @@ import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/Modal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { Notification, NotificationType } from '../components/Notification';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -62,6 +63,7 @@ export const ClinicalNotes: React.FC = () => {
   const [activeNoteMenu, setActiveNoteMenu] = useState<string | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<NoteFormValues>({
     resolver: zodResolver(noteSchema)
@@ -125,7 +127,7 @@ export const ClinicalNotes: React.FC = () => {
           .eq('id', editingNote.id);
 
         if (error) throw error;
-        alert('Clinical note updated successfully!');
+        setNotification({ type: 'success', message: 'Clinical note updated successfully!' });
       } else {
         const { error } = await supabase
           .from('clinical_notes')
@@ -135,7 +137,7 @@ export const ClinicalNotes: React.FC = () => {
           }]);
 
         if (error) throw error;
-        alert('Clinical note added successfully!');
+        setNotification({ type: 'success', message: 'Clinical note added successfully!' });
       }
       
       setIsModalOpen(false);
@@ -144,7 +146,7 @@ export const ClinicalNotes: React.FC = () => {
       fetchNotes();
     } catch (error: any) {
       console.error('Error saving clinical note:', error);
-      alert('Error saving clinical note: ' + error.message);
+      setNotification({ type: 'error', message: 'Error saving clinical note: ' + error.message });
     }
   };
 
@@ -169,10 +171,10 @@ export const ClinicalNotes: React.FC = () => {
       
       // Refresh data from server to ensure sync
       await fetchNotes();
-      alert('Note deleted successfully');
+      setNotification({ type: 'success', message: 'Note deleted successfully' });
     } catch (error: any) {
       console.error('ClinicalNotes: Caught error during delete:', error);
-      alert('Error deleting note: ' + (error.message || 'Unknown error'));
+      setNotification({ type: 'error', message: 'Error deleting note: ' + (error.message || 'Unknown error') });
     } finally {
       setIsDeleting(false);
       setNoteToDelete(null);
@@ -391,6 +393,14 @@ export const ClinicalNotes: React.FC = () => {
         confirmText="Delete Note"
         isLoading={isDeleting}
       />
+
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

@@ -55,7 +55,6 @@ export const Dashboard: React.FC = () => {
     activePatients: 0,
     visitsThisWeek: 0,
     pendingForms: 0,
-    complianceScore: 98,
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [activityData, setActivityData] = useState<any[]>([]);
@@ -141,7 +140,6 @@ export const Dashboard: React.FC = () => {
         activePatients: patientCount || 0,
         visitsThisWeek: visitCount || 0,
         pendingForms: formCount || 0,
-        complianceScore: 98,
       });
       setRecentActivity(logs || []);
       setActivityData(activityData);
@@ -193,7 +191,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard 
           title="Active Patients" 
           value={stats.activePatients} 
@@ -215,13 +213,6 @@ export const Dashboard: React.FC = () => {
           value={stats.pendingForms} 
           icon={FileText} 
           color="bg-amber-500"
-          loading={loading}
-        />
-        <StatCard 
-          title="Compliance Score" 
-          value={`${stats.complianceScore}%`} 
-          icon={ShieldCheck} 
-          color="bg-purple-500"
           loading={loading}
         />
       </div>
@@ -277,16 +268,6 @@ export const Dashboard: React.FC = () => {
               <h4 className="text-lg font-bold">New Care Plan</h4>
               <p className="text-white/70 text-sm mt-1">Develop or update MassHealth GAFC Care Plan.</p>
             </Link>
-            <Link to="/compliance" className="group bg-purple-600 p-6 rounded-3xl text-white shadow-lg shadow-purple-900/20 hover:scale-[1.02] transition-all">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-white/10 rounded-2xl">
-                  <ShieldCheck size={24} />
-                </div>
-                <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <h4 className="text-lg font-bold">Compliance Dashboard</h4>
-              <p className="text-white/70 text-sm mt-1">Review clinical compliance and audit logs.</p>
-            </Link>
           </div>
         </div>
 
@@ -294,7 +275,6 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-zinc-900">Recent Activity</h3>
-              <Link to="/compliance" className="text-xs text-partners-blue-dark hover:underline">View All</Link>
             </div>
             <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {loading ? (
@@ -335,13 +315,10 @@ export const Dashboard: React.FC = () => {
 
           <div className="bg-gradient-to-br from-partners-blue-dark to-blue-800 p-8 rounded-3xl text-white">
             <TrendingUp size={32} className="mb-4 text-blue-200" />
-            <h3 className="text-xl font-bold mb-2">Compliance Alert</h3>
+            <h3 className="text-xl font-bold mb-2">Quick Actions</h3>
             <p className="text-blue-100 text-sm leading-relaxed">
-              {stats.pendingForms} forms are currently in draft status. Please ensure all documentation is submitted.
+              Access your clinical tools and patient records quickly from the sidebar.
             </p>
-            <button className="mt-6 px-6 py-2 bg-white text-partners-blue-dark rounded-xl text-sm font-bold">
-              Review Now
-            </button>
           </div>
         </div>
       </div>

@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { Pill, Save, Send, Plus, Trash2, Calendar, Clock, User, ArrowLeft, Loader2, FileText, Download } from 'lucide-react';
+import { Notification, NotificationType } from '../components/Notification';
+import { Pill, Save, Send, Plus, Trash2, Calendar, Clock, User, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
 import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
@@ -43,6 +44,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, watch, control, reset, getValues, formState: { errors, isSubmitting } } = useForm<MARFormValues>({
     resolver: zodResolver(marSchema),
@@ -109,7 +111,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -117,7 +119,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
 
   const submitForm = async (data: MARFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -177,11 +179,14 @@ export const MedicationAdministrationRecord: React.FC = () => {
 
       console.log(`${FORM_NAME}: Response inserted successfully, ID:`, responseData.id);
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'MAR submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'MAR submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error(`${FORM_NAME}: Caught error during submission:`, error);
-      alert(`Error: ${error.message}`);
+      setNotification({ type: 'error', message: `Error: ${error.message}` });
     } finally {
       setIsSavingDraft(false);
       console.log(`${FORM_NAME}: Submission process finished.`);
@@ -219,6 +224,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
@@ -227,6 +233,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting || isSavingDraft}
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -338,6 +345,13 @@ export const MedicationAdministrationRecord: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

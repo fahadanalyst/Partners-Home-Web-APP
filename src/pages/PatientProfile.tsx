@@ -15,7 +15,6 @@ import {
   Clock,
   ChevronRight,
   Edit2,
-  Download,
   Printer
 } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -232,21 +231,21 @@ export const PatientProfile: React.FC = () => {
         </Link>
         <Link to={`/care-plan?patientId=${patient.id}`} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-partners-blue-dark/10 text-partners-blue-dark flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <ClipboardList size={24} />
+            <FileText size={24} />
           </div>
           <h4 className="font-bold text-zinc-900 mb-1">Care Plan</h4>
           <p className="text-xs text-zinc-500">Update patient care plan</p>
         </Link>
         <Link to={`/physician-summary?patientId=${patient.id}`} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-partners-green/10 text-partners-green flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <Activity size={24} />
+            <FileText size={24} />
           </div>
           <h4 className="font-bold text-zinc-900 mb-1">Physician Summary</h4>
           <p className="text-xs text-zinc-500">Generate PSF-1 form</p>
         </Link>
         <Link to={`/patient-resource-data?patientId=${patient.id}`} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-partners-blue-dark/10 text-partners-blue-dark flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <User size={24} />
+            <FileText size={24} />
           </div>
           <h4 className="font-bold text-zinc-900 mb-1">Resource Data</h4>
           <p className="text-xs text-zinc-500">Patient demographic details</p>

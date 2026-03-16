@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { ClipboardList, Plus, Trash2, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Send, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Notification, NotificationType } from '../components/Notification';
 import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
@@ -118,6 +119,7 @@ export const GAFCCarePlan: React.FC = () => {
   const [patientId, setPatientId] = useState<string | null>(urlPatientId);
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, control, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<CarePlanValues>({
     resolver: zodResolver(carePlanSchema),
@@ -225,7 +227,7 @@ export const GAFCCarePlan: React.FC = () => {
 
   const submitForm = async (data: CarePlanValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit care plans.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit care plans.' });
       return;
     }
 
@@ -310,13 +312,16 @@ export const GAFCCarePlan: React.FC = () => {
         console.log('GAFC Care Plan: Care manager signature inserted successfully');
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Care plan submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'Care plan submitted successfully!' 
+      });
       if (status === 'submitted') {
         reset();
       }
     } catch (error: any) {
       console.error('GAFC Care Plan: Caught error during submission:', error);
-      alert(`Error submitting form: ${error.message || 'Please try again.'}`);
+      setNotification({ type: 'error', message: `Error submitting form: ${error.message || 'Please try again.'}` });
     } finally {
       setIsSavingDraft(false);
       console.log('GAFC Care Plan: Submission process finished.');
@@ -340,7 +345,7 @@ export const GAFCCarePlan: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -382,18 +387,18 @@ export const GAFCCarePlan: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex gap-3 w-full sm:w-auto">
+          <div className="flex gap-3 no-print">
             <Button 
               variant="secondary" 
               type="button" 
               onClick={handlePrint}
               disabled={isGeneratingPDF}
-              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
+              className="h-11 px-6 rounded-xl shadow-sm"
             >
               {isGeneratingPDF ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <Download className="w-4 h-4 mr-2" />
+                <FileText className="w-4 h-4 mr-2" />
               )}
               {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </Button>
@@ -401,7 +406,7 @@ export const GAFCCarePlan: React.FC = () => {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={isSubmitting}
-              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
+              className="h-11 px-8 rounded-xl shadow-md"
             >
               <Send className="w-4 h-4 mr-2" />
               {isSubmitting ? 'Submitting...' : 'Submit Care Plan'}
@@ -797,6 +802,13 @@ export const GAFCCarePlan: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

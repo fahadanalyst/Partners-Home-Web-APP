@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { FileText, Printer, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { FileText, Printer, Send, ArrowLeft, Loader2 } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Notification, NotificationType } from '../components/Notification';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
@@ -99,6 +100,7 @@ export const GAFCProgressNote: React.FC = () => {
   const [patientId, setPatientId] = useState<string | null>(urlPatientId);
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<GAFCFormValues>({
     resolver: zodResolver(gafcSchema),
@@ -207,7 +209,7 @@ export const GAFCProgressNote: React.FC = () => {
 
   const submitForm = async (data: GAFCFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit notes.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit notes.' });
       return;
     }
 
@@ -267,7 +269,6 @@ export const GAFCProgressNote: React.FC = () => {
         
         if (error) throw error;
         responseData = updateResult;
-        alert('GAFC Progress Note updated successfully!');
       } else {
         const { data: insertResult, error } = await supabase
           .from('form_responses')
@@ -284,8 +285,6 @@ export const GAFCProgressNote: React.FC = () => {
         
         if (error) throw error;
         responseData = insertResult;
-        alert('GAFC Progress Note submitted successfully!');
-        reset();
       }
       
       if (!responseData) {
@@ -313,13 +312,16 @@ export const GAFCProgressNote: React.FC = () => {
         console.log('GAFC Note: Signature inserted successfully');
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : editId ? 'Progress note updated successfully!' : 'Progress note submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : editId ? 'Progress note updated successfully!' : 'Progress note submitted successfully!' 
+      });
       if (status === 'submitted' && !editId) {
         reset();
       }
     } catch (error: any) {
       console.error('GAFC Note: Caught error during submission:', error);
-      alert(`Error submitting form: ${error.message || 'Please try again.'}`);
+      setNotification({ type: 'error', message: `Error submitting form: ${error.message || 'Please try again.'}` });
     } finally {
       setIsSavingDraft(false);
       console.log('GAFC Note: Submission process finished.');
@@ -343,7 +345,7 @@ export const GAFCProgressNote: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -387,18 +389,18 @@ export const GAFCProgressNote: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex gap-3 w-full sm:w-auto">
+          <div className="flex gap-3 no-print">
             <Button 
               variant="secondary" 
               type="button" 
               onClick={handlePrint}
               disabled={isGeneratingPDF}
-              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
+              className="h-11 px-6 rounded-xl shadow-sm"
             >
               {isGeneratingPDF ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <Download className="w-4 h-4 mr-2" />
+                <FileText className="w-4 h-4 mr-2" />
               )}
               {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </Button>
@@ -406,7 +408,7 @@ export const GAFCProgressNote: React.FC = () => {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={isSubmitting}
-              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
+              className="h-11 px-8 rounded-xl shadow-md"
             >
               <Send className="w-4 h-4 mr-2" />
               {isSubmitting ? 'Submitting...' : 'Submit Note'}
@@ -711,6 +713,13 @@ export const GAFCProgressNote: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

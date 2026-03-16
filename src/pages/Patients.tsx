@@ -5,23 +5,22 @@ import {
   Users, 
   Search, 
   Plus, 
-  MoreVertical, 
   Trash2,
   Edit2,
   UserPlus,
   Filter,
-  ArrowRight,
   Calendar as CalendarIcon,
   Phone,
   Mail,
   MapPin,
   Shield,
-  CheckCircle,
+  FileText,
   X
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
+import { Notification, NotificationType } from '../components/Notification';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -64,7 +63,7 @@ export const Patients: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
@@ -91,13 +90,6 @@ export const Patients: React.FC = () => {
     fetchPatients();
   }, []);
 
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
   const fetchPatients = async () => {
     try {
       setLoading(true);
@@ -114,7 +106,7 @@ export const Patients: React.FC = () => {
       const { data: visitsData, error: visitsError } = await supabase
         .from('visits')
         .select('patient_id, scheduled_at')
-        .eq('status', 'completed')
+        .eq('status', 'Verified')
         .order('scheduled_at', { ascending: false });
 
       if (visitsError) {
@@ -154,26 +146,33 @@ export const Patients: React.FC = () => {
       };
 
       if (editingPatient) {
-        const { error } = await supabase
-          .from('patients')
-          .update(patientData)
-          .eq('id', editingPatient.id);
+        const response = await fetch('/api/patients/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingPatient.id, ...patientData })
+        });
         
-        if (error) throw error;
-        setNotification({ type: 'success', message: 'Patient updated successfully!' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to update patient');
+        
+        setNotification({ type: 'success', message: 'Patient record updated successfully!' });
       } else {
-        const { error } = await supabase
-          .from('patients')
-          .insert([patientData]);
+        const response = await fetch('/api/patients/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patientData)
+        });
         
-        if (error) throw error;
-        setNotification({ type: 'success', message: 'Patient added successfully!' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to create patient');
+        
+        setNotification({ type: 'success', message: 'New patient record added successfully!' });
       }
 
       setIsModalOpen(false);
       setEditingPatient(null);
       reset();
-      fetchPatients();
+      await fetchPatients();
     } catch (error: any) {
       console.error('Error saving patient:', error);
       setNotification({ type: 'error', message: 'Error saving patient: ' + (error.message || 'Check console for details') });
@@ -184,12 +183,21 @@ export const Patients: React.FC = () => {
     if (!patientToDelete) return;
 
     try {
-      const { error } = await supabase
+      const { error, data: deletedData } = await supabase
         .from('patients')
         .delete()
-        .eq('id', patientToDelete);
+        .eq('id', patientToDelete)
+        .select();
 
       if (error) throw error;
+      
+      // If no error but no data, check if it actually existed
+      if (!deletedData || deletedData.length === 0) {
+        const { data: check } = await supabase.from('patients').select('id').eq('id', patientToDelete).maybeSingle();
+        if (check) {
+          throw new Error('Failed to delete the record. It might be protected by database constraints.');
+        }
+      }
       
       // Refresh data from server to ensure sync
       await fetchPatients();
@@ -331,23 +339,24 @@ export const Patients: React.FC = () => {
                         </Button>
                       </Link>
                       <Link to={`/progress-note?patientId=${patient.id}`}>
-                        <Button variant="ghost" size="sm" className="rounded-full text-xs">
-                          Progress Note
+                        <Button variant="ghost" size="sm" className="rounded-full text-xs flex items-center gap-1">
+                          <FileText size={16} />
+                          Note
                         </Button>
                       </Link>
                       <Link to={`/care-plan?patientId=${patient.id}`}>
-                        <Button variant="ghost" size="sm" className="rounded-full text-xs">
-                          Care Plan
+                        <Button variant="ghost" size="sm" className="rounded-full text-xs flex items-center gap-1">
+                          <FileText size={16} />
+                          Plan
                         </Button>
                       </Link>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="rounded-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                      <button 
+                        className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                         onClick={() => setPatientToDelete(patient.id)}
+                        title="Delete Patient"
                       >
                         <Trash2 size={16} />
-                      </Button>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -400,13 +409,15 @@ export const Patients: React.FC = () => {
 
               <div className="flex gap-2 pt-2">
                 <Link to={`/progress-note?patientId=${patient.id}`} className="flex-1">
-                  <Button variant="secondary" size="sm" className="w-full text-xs">
-                    Progress Note
+                  <Button variant="secondary" size="sm" className="w-full text-xs flex items-center justify-center gap-1">
+                    <FileText size={16} />
+                    Note
                   </Button>
                 </Link>
                 <Link to={`/care-plan?patientId=${patient.id}`} className="flex-1">
-                  <Button variant="secondary" size="sm" className="w-full text-xs">
-                    Care Plan
+                  <Button variant="secondary" size="sm" className="w-full text-xs flex items-center justify-center gap-1">
+                    <FileText size={16} />
+                    Plan
                   </Button>
                 </Link>
                 <Button 
@@ -593,24 +604,11 @@ export const Patients: React.FC = () => {
 
       {/* Notification Toast */}
       {notification && (
-        <div className={clsx(
-          "fixed bottom-8 right-8 z-[100] px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-bottom-4 duration-300 flex items-center gap-3",
-          notification.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-800" : "bg-red-50 border-red-100 text-red-800"
-        )}>
-          {notification.type === 'success' ? (
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <CheckCircle className="text-emerald-600" size={18} />
-            </div>
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-              <Trash2 className="text-red-600" size={18} />
-            </div>
-          )}
-          <p className="text-sm font-bold">{notification.message}</p>
-          <button onClick={() => setNotification(null)} className="ml-4 text-zinc-400 hover:text-zinc-600">
-            <X size={16} />
-          </button>
-        </div>
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
       )}
     </div>
   );

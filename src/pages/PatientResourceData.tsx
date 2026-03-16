@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { UserRound, Save, Send, Users, Phone, Shield, HeartPulse, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { UserRound, Save, Send, Users, Phone, Shield, HeartPulse, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { Logo } from '../components/Logo';
+import { Notification, NotificationType } from '../components/Notification';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { exportToPDF } from '../utils/pdfExport';
@@ -70,6 +71,7 @@ export const PatientResourceData: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, getValues, watch, reset, formState: { errors, isSubmitting } } = useForm<ResourceFormValues>({
     resolver: zodResolver(resourceSchema),
@@ -132,7 +134,7 @@ export const PatientResourceData: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -140,7 +142,7 @@ export const PatientResourceData: React.FC = () => {
 
   const submitForm = async (data: ResourceFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -177,11 +179,14 @@ export const PatientResourceData: React.FC = () => {
         throw responseError;
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Patient Resource Data submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'Patient Resource Data submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error('Patient Resource Data: Caught error during submission:', error);
-      alert(`Error submitting form: ${error.message || 'Please try again.'}`);
+      setNotification({ type: 'error', message: `Error submitting form: ${error.message || 'Please try again.'}` });
     } finally {
       setIsSavingDraft(false);
       console.log('Patient Resource Data: Submission process finished.');
@@ -207,25 +212,25 @@ export const PatientResourceData: React.FC = () => {
             <p className="text-partners-gray">Demographic information and health/community resources.</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
+        <div className="flex gap-3 no-print">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
-            className="flex-1 md:flex-none"
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
             )}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting || isSavingDraft || isGeneratingPDF}
-            className="flex-1 md:flex-none"
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -414,6 +419,13 @@ export const PatientResourceData: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

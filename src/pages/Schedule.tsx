@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { Notification, NotificationType } from '../components/Notification';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -82,6 +83,7 @@ export const Schedule: React.FC = () => {
   const [filteredPatientsForSelect, setFilteredPatients] = useState<Patient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<VisitFormValues>({
     resolver: zodResolver(visitSchema),
@@ -156,10 +158,10 @@ export const Schedule: React.FC = () => {
       setSelectedPatientId(null);
       setPatientSearchTerm('');
       fetchVisits();
-      alert('Visit scheduled successfully!');
+      setNotification({ type: 'success', message: 'Visit scheduled successfully!' });
     } catch (error: any) {
       console.error('Error scheduling visit:', error);
-      alert('Error scheduling visit: ' + error.message);
+      setNotification({ type: 'error', message: 'Error scheduling visit: ' + error.message });
     }
   };
 
@@ -178,7 +180,7 @@ export const Schedule: React.FC = () => {
         const hasNotes = (notesRes.data && notesRes.data.length > 0) || (formsRes.data && formsRes.data.length > 0);
 
         if (!hasNotes) {
-          alert('Cannot verify shift: Staff has not completed all notes for this shift.');
+          setNotification({ type: 'warning', message: 'Cannot verify shift: Staff has not completed all notes for this shift.' });
           return;
         }
       }
@@ -195,9 +197,10 @@ export const Schedule: React.FC = () => {
       }
       
       fetchVisits();
+      setNotification({ type: 'success', message: `Visit status updated to ${newStatus}` });
     } catch (error: any) {
       console.error('Error updating status:', error);
-      alert('Error updating status: ' + error.message);
+      setNotification({ type: 'error', message: 'Error updating status: ' + error.message });
     }
   };
 
@@ -695,6 +698,15 @@ export const Schedule: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Notification Toast */}
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

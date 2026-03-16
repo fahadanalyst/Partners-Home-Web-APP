@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { Notification, NotificationType } from '../components/Notification';
 
 interface ComplianceStat {
   label: string;
@@ -28,6 +29,7 @@ export const Compliance: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   useEffect(() => {
     fetchComplianceData();
@@ -159,9 +161,10 @@ export const Compliance: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setNotification({ type: 'success', message: 'Report exported successfully!' });
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export report.');
+      setNotification({ type: 'error', message: 'Failed to export report.' });
     }
   };
 
@@ -352,6 +355,14 @@ export const Compliance: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

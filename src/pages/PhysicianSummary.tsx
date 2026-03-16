@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { FilePlus, Send, User, Activity, ClipboardCheck, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { FilePlus, Send, User, Activity, ClipboardCheck, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
+import { Notification, NotificationType } from '../components/Notification';
 import { Logo } from '../components/Logo';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
@@ -71,6 +72,7 @@ export const PhysicianSummary: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<PSFFormValues>({
     resolver: zodResolver(psfSchema),
@@ -123,7 +125,7 @@ export const PhysicianSummary: React.FC = () => {
 
   const submitForm = async (data: PSFFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -202,11 +204,14 @@ export const PhysicianSummary: React.FC = () => {
         console.log('PSF Form: Signature inserted successfully');
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'Physician Summary submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'Physician Summary submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error('PSF Form: Caught error during submission:', error);
-      alert(`Error: ${error.message}`);
+      setNotification({ type: 'error', message: `Error: ${error.message}` });
     } finally {
       setIsSavingDraft(false);
       console.log('PSF Form: Submission process finished.');
@@ -230,7 +235,7 @@ export const PhysicianSummary: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -253,18 +258,18 @@ export const PhysicianSummary: React.FC = () => {
             <p className="text-partners-gray">Verification and validation of medical information.</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 no-print w-full md:w-auto">
+        <div className="flex gap-3 no-print">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
-            className="flex-1 md:flex-none"
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
             )}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
@@ -272,7 +277,7 @@ export const PhysicianSummary: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
-            className="flex-1 md:flex-none"
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -547,6 +552,13 @@ export const PhysicianSummary: React.FC = () => {
           </div>
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

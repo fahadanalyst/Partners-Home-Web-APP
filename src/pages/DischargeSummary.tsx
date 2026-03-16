@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { ClipboardCheck, Send, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { ClipboardCheck, Send, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
 import { Logo } from '../components/Logo';
+import { Notification, NotificationType } from '../components/Notification';
 import { supabase, getFormIdByName } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,7 @@ export const DischargeSummary: React.FC = () => {
   const { profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, getValues } = useForm<DischargeValues>({
@@ -47,9 +49,9 @@ export const DischargeSummary: React.FC = () => {
         status: 'submitted'
       }]);
       if (error) throw error;
-      alert('Discharge Summary submitted successfully!');
+      setNotification({ type: 'success', message: 'Discharge Summary submitted successfully!' });
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      setNotification({ type: 'error', message: `Error: ${error.message}` });
     } finally {
       setIsSubmitting(false);
     }
@@ -68,7 +70,7 @@ export const DischargeSummary: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -92,11 +94,26 @@ export const DischargeSummary: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-3 no-print">
-          <Button variant="secondary" type="button" onClick={handlePrint} disabled={isGeneratingPDF}>
-            {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-            Download PDF
+          <Button 
+            variant="secondary" 
+            type="button" 
+            onClick={handlePrint} 
+            disabled={isGeneratingPDF}
+            className="h-11 px-6 rounded-xl shadow-sm"
+          >
+            {isGeneratingPDF ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <FileText className="w-4 h-4 mr-2" />
+            )}
+            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
-          <Button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+          <Button 
+            type="button" 
+            onClick={handleSubmit(onSubmit)} 
+            disabled={isSubmitting}
+            className="h-11 px-8 rounded-xl shadow-md"
+          >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
           </Button>
@@ -127,6 +144,13 @@ export const DischargeSummary: React.FC = () => {
           <SignaturePad onSave={(sig) => setValue('signature', sig)} />
         </div>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };

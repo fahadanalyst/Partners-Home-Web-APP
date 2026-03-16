@@ -4,8 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
-import { ClipboardCheck, Send, User, Brain, HeartPulse, Activity, ArrowLeft, Loader2, Download } from 'lucide-react';
+import { ClipboardCheck, Send, User, Brain, HeartPulse, Activity, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { Logo } from '../components/Logo';
+import { Notification, NotificationType } from '../components/Notification';
 import { supabase, getFormIdByName, withTimeout } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
@@ -56,6 +57,7 @@ export const MDSAssessment: React.FC = () => {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || DUMMY_PATIENT_ID;
+  const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, getValues, formState: { errors, isSubmitting } } = useForm<MDSFormValues>({
     resolver: zodResolver(mdsSchema),
@@ -115,7 +117,7 @@ export const MDSAssessment: React.FC = () => {
 
   const submitForm = async (data: MDSFormValues, status: 'draft' | 'submitted') => {
     if (!profile) {
-      alert('You must be logged in to submit forms.');
+      setNotification({ type: 'error', message: 'You must be logged in to submit forms.' });
       return;
     }
 
@@ -167,11 +169,14 @@ export const MDSAssessment: React.FC = () => {
         throw responseError;
       }
       
-      alert(status === 'draft' ? 'Draft saved successfully!' : 'MDS Assessment submitted successfully!');
+      setNotification({ 
+        type: 'success', 
+        message: status === 'draft' ? 'Draft saved successfully!' : 'MDS Assessment submitted successfully!' 
+      });
       if (status === 'submitted') reset();
     } catch (error: any) {
       console.error('MDS Form: Caught error during submission:', error);
-      alert(`Error: ${error.message}`);
+      setNotification({ type: 'error', message: `Error: ${error.message}` });
     } finally {
       setIsSavingDraft(false);
       console.log('MDS Form: Submission process finished.');
@@ -195,7 +200,7 @@ export const MDSAssessment: React.FC = () => {
       }
     } catch (error) {
       console.error('PDF error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -224,11 +229,12 @@ export const MDSAssessment: React.FC = () => {
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
+            className="h-11 px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
             )}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
@@ -236,6 +242,7 @@ export const MDSAssessment: React.FC = () => {
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
+            className="h-11 px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -435,6 +442,13 @@ export const MDSAssessment: React.FC = () => {
           <textarea {...register('summary')} rows={6} className="w-full px-4 py-3 rounded-2xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue/20 outline-none transition-all" placeholder="Provide a clinical summary of the assessment findings..." />
         </section>
       </form>
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
     </div>
   );
 };
