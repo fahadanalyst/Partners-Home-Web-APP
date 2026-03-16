@@ -135,6 +135,44 @@ app.post("/api/setup-database", async (req, res) => {
     }
 });
 
+// Patient: Create Endpoint (Bypasses RLS)
+app.post("/api/patients/create", async (req, res) => {
+    try {
+      if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error("Supabase environment variables (VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) are missing on the server.");
+      }
+      const { data, error } = await supabaseAdmin
+        .from('patients')
+        .insert([req.body])
+        .select();
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Patient Create Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+});
+
+// Patient: Update Endpoint (Bypasses RLS)
+app.post("/api/patients/update", async (req, res) => {
+    try {
+      if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error("Supabase environment variables (VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) are missing on the server.");
+      }
+      const { id, ...patientData } = req.body;
+      const { data, error } = await supabaseAdmin
+        .from('patients')
+        .update(patientData)
+        .eq('id', id)
+        .select();
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Patient Update Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+});
+
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
 });

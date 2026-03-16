@@ -191,6 +191,10 @@ app.post("/api/admin/create-user", async (req, res) => {
   // Patient: Create Endpoint (Bypasses RLS)
   app.post("/api/patients/create", async (req, res) => {
     try {
+      if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error("Supabase environment variables (VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) are missing on the server.");
+      }
+
       const { data, error } = await supabaseAdmin
         .from('patients')
         .insert([req.body])
@@ -200,13 +204,17 @@ app.post("/api/admin/create-user", async (req, res) => {
       res.json({ success: true, data });
     } catch (error: any) {
       console.error("Server: Patient Create Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || "Internal Server Error" });
     }
   });
 
   // Patient: Update Endpoint (Bypasses RLS)
   app.post("/api/patients/update", async (req, res) => {
     try {
+      if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error("Supabase environment variables (VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) are missing on the server.");
+      }
+
       const { id, ...patientData } = req.body;
       const { data, error } = await supabaseAdmin
         .from('patients')
@@ -218,7 +226,7 @@ app.post("/api/admin/create-user", async (req, res) => {
       res.json({ success: true, data });
     } catch (error: any) {
       console.error("Server: Patient Update Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || "Internal Server Error" });
     }
   });
 
