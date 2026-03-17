@@ -230,6 +230,45 @@ app.post("/api/admin/create-user", async (req, res) => {
     }
   });
 
+  // Patient: Delete Endpoint (Bypasses RLS and handles cleanup)
+  app.post("/api/patients/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) throw new Error("Patient ID is required");
+
+      console.log(`Server: Deleting patient ${id} and all related records...`);
+
+      // 1. Delete signatures related to this patient's forms and notes
+      // First get the IDs
+      const { data: forms } = await supabaseAdmin.from('form_responses').select('id').eq('patient_id', id);
+      const { data: notes } = await supabaseAdmin.from('clinical_notes').select('id').eq('patient_id', id);
+      
+      const formIds = forms?.map(f => f.id) || [];
+      const noteIds = notes?.map(n => n.id) || [];
+      const allParentIds = [...formIds, ...noteIds];
+
+      if (allParentIds.length > 0) {
+        await supabaseAdmin.from('signatures').delete().in('parent_id', allParentIds);
+      }
+
+      // 2. Delete other related records
+      await supabaseAdmin.from('form_responses').delete().eq('patient_id', id);
+      await supabaseAdmin.from('clinical_notes').delete().eq('patient_id', id);
+      await supabaseAdmin.from('visits').delete().eq('patient_id', id);
+      await supabaseAdmin.from('files').delete().eq('patient_id', id);
+
+      // 3. Finally delete the patient
+      const { error } = await supabaseAdmin.from('patients').delete().eq('id', id);
+
+      if (error) throw error;
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Server: Patient Delete Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+  });
+
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });

@@ -15,11 +15,14 @@ import {
   Clock,
   ChevronRight,
   Edit2,
-  Printer
+  Printer,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
-import { format } from 'date-fns';
+import { format, addYears, addMonths, isAfter, isBefore, subDays, addDays } from 'date-fns';
+import { generateFormPDF } from '../services/pdfService';
 
 interface Patient {
   id: string;
@@ -29,10 +32,19 @@ interface Patient {
   gender: string;
   phone: string | null;
   email: string | null;
-  address: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
   insurance_id: string | null;
   ssn_encrypted: string | null;
   status: string;
+  mloa_days: number;
+  nmloa_days: number;
+  last_annual_physical: string | null;
+  last_semi_annual_report: string | null;
+  last_monthly_visit: string | null;
   created_at: string;
 }
 
@@ -43,12 +55,67 @@ interface Visit {
   type: string;
 }
 
+const ComplianceItem: React.FC<{ 
+  title: string; 
+  lastDate: string | null; 
+  dueDate: Date | null;
+  type: string;
+}> = ({ title, lastDate, dueDate }) => {
+  const today = new Date();
+  const isOverdue = dueDate && isBefore(dueDate, today);
+  const isDueSoon = dueDate && !isOverdue && isBefore(dueDate, addDays(today, 30));
+  const isOverdueAlert = dueDate && isOverdue && isBefore(today, addDays(dueDate, 5));
+
+  return (
+    <div className={`p-4 rounded-2xl border transition-all ${
+      isOverdue ? 'bg-red-50 border-red-100' : 
+      isDueSoon ? 'bg-amber-50 border-amber-100' : 
+      'bg-zinc-50 border-zinc-100'
+    }`}>
+      <div className="flex justify-between items-start mb-2">
+        <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{title}</p>
+        {isOverdue ? (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 uppercase">
+            <AlertCircle size={12} />
+            Overdue
+          </span>
+        ) : isDueSoon ? (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 uppercase">
+            <Clock size={12} />
+            Due Soon
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase">
+            <CheckCircle2 size={12} />
+            Compliant
+          </span>
+        )}
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-bold text-zinc-900">
+          {lastDate ? format(new Date(lastDate), 'MMM d, yyyy') : 'Never'}
+        </p>
+        <p className="text-[10px] text-zinc-500">
+          Next Due: {dueDate ? format(dueDate, 'MMM d, yyyy') : 'TBD'}
+        </p>
+      </div>
+      {isOverdueAlert && (
+        <div className="mt-3 p-2 bg-red-100/50 rounded-lg text-[10px] text-red-700 font-medium flex items-center gap-1 animate-pulse">
+          <AlertCircle size={12} />
+          Critical: Action required immediately
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const PatientProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -88,6 +155,20 @@ export const PatientProfile: React.FC = () => {
     }
   };
 
+  const handlePrint = async () => {
+    if (!patient) return;
+    
+    try {
+      setPrinting(true);
+      await generateFormPDF('Patient Summary', { patient, visits }, `Patient_Summary_${patient.last_name}_${patient.first_name}.pdf`);
+    } catch (error) {
+      console.error('Error printing summary:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -110,9 +191,9 @@ export const PatientProfile: React.FC = () => {
             <Edit2 size={16} className="mr-2" />
             Edit Profile
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={handlePrint} disabled={printing}>
             <Printer size={16} className="mr-2" />
-            Print Summary
+            {printing ? 'Generating...' : 'Print Summary'}
           </Button>
         </div>
       </div>
@@ -122,11 +203,11 @@ export const PatientProfile: React.FC = () => {
         <div className="bg-partners-blue-dark/5 p-8 border-b border-zinc-100">
           <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
             <div className="w-24 h-24 rounded-3xl bg-partners-blue-dark text-white flex items-center justify-center text-4xl font-bold shadow-lg">
-              {patient.first_name[0]}{patient.last_name[0]}
+              {patient.first_name?.[0] || 'P'}{patient.last_name?.[0] || 'T'}
             </div>
             <div className="space-y-2 flex-1">
               <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold text-zinc-900">{patient.last_name}, {patient.first_name}</h1>
+                <h1 className="text-3xl font-bold text-zinc-900">{patient.last_name || 'Patient'}, {patient.first_name || ''}</h1>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                   patient.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-600'
                 }`}>
@@ -136,7 +217,7 @@ export const PatientProfile: React.FC = () => {
               <div className="flex flex-wrap gap-6 text-zinc-500">
                 <div className="flex items-center gap-2">
                   <Calendar size={18} className="text-zinc-400" />
-                  <span>DOB: {format(new Date(patient.dob), 'MMMM d, yyyy')}</span>
+                  <span>DOB: {patient.dob ? format(new Date(patient.dob), 'MMMM d, yyyy') : 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <User size={18} className="text-zinc-400" />
@@ -168,7 +249,17 @@ export const PatientProfile: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Address</p>
-                <p className="text-zinc-700 leading-relaxed">{patient.address || 'Not provided'}</p>
+                <div className="text-zinc-700 leading-relaxed">
+                  {patient.address_line1 ? (
+                    <>
+                      <p>{patient.address_line1}</p>
+                      {patient.address_line2 && <p>{patient.address_line2}</p>}
+                      <p>{patient.city}, {patient.state} {patient.zip_code}</p>
+                    </>
+                  ) : (
+                    'Not provided'
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -202,7 +293,7 @@ export const PatientProfile: React.FC = () => {
                     <div key={visit.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                       <div>
                         <p className="text-sm font-bold text-zinc-900">{visit.type}</p>
-                        <p className="text-xs text-zinc-500">{format(new Date(visit.scheduled_at), 'MMM d, yyyy')}</p>
+                        <p className="text-xs text-zinc-500">{visit.scheduled_at ? format(new Date(visit.scheduled_at), 'MMM d, yyyy') : 'N/A'}</p>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                         visit.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-600'
@@ -214,6 +305,87 @@ export const PatientProfile: React.FC = () => {
                 </div>
               ) : (
                 <p className="text-sm text-zinc-500 italic">No recent visits recorded.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Compliance Tracking Section */}
+      <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+          <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+            <Shield size={18} className="text-partners-blue-dark" />
+            Compliance Tracking & Alerts
+          </h3>
+        </div>
+        <div className="p-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Annual Physical */}
+            <ComplianceItem 
+              title="Annual Physical"
+              lastDate={patient.last_annual_physical}
+              dueDate={patient.last_annual_physical ? addYears(new Date(patient.last_annual_physical), 1) : null}
+              type="annual"
+            />
+            
+            {/* Semi-Annual Report */}
+            <ComplianceItem 
+              title="Health Status Report"
+              lastDate={patient.last_semi_annual_report}
+              dueDate={patient.last_semi_annual_report ? addMonths(new Date(patient.last_semi_annual_report), 6) : null}
+              type="semi-annual"
+            />
+
+            {/* Monthly Visit */}
+            <ComplianceItem 
+              title="Monthly Visit"
+              lastDate={patient.last_monthly_visit}
+              dueDate={patient.last_monthly_visit ? addMonths(new Date(patient.last_monthly_visit), 1) : null}
+              type="monthly"
+            />
+
+            {/* MLOA Tracking */}
+            <div className="p-4 rounded-2xl border border-zinc-100 bg-zinc-50/30 space-y-3">
+              <div className="flex justify-between items-start">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Medical Leave (MLOA)</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patient.mloa_days > 30 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {patient.mloa_days}/30 Days
+                </span>
+              </div>
+              <div className="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${patient.mloa_days > 30 ? 'bg-red-500' : 'bg-partners-green'}`}
+                  style={{ width: `${Math.min((patient.mloa_days / 30) * 100, 100)}%` }}
+                />
+              </div>
+              {patient.mloa_days > 30 && (
+                <p className="text-[10px] text-red-600 font-medium flex items-center gap-1">
+                  <AlertCircle size={12} />
+                  Exceeded annual billable limit
+                </p>
+              )}
+            </div>
+
+            {/* NMLOA Tracking */}
+            <div className="p-4 rounded-2xl border border-zinc-100 bg-zinc-50/30 space-y-3">
+              <div className="flex justify-between items-start">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Non-Medical Leave (NMLOA)</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patient.nmloa_days > 45 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {patient.nmloa_days}/45 Days
+                </span>
+              </div>
+              <div className="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${patient.nmloa_days > 45 ? 'bg-red-500' : 'bg-partners-green'}`}
+                  style={{ width: `${Math.min((patient.nmloa_days / 45) * 100, 100)}%` }}
+                />
+              </div>
+              {patient.nmloa_days > 45 && (
+                <p className="text-[10px] text-red-600 font-medium flex items-center gap-1">
+                  <AlertCircle size={12} />
+                  Exceeded annual billable limit
+                </p>
               )}
             </div>
           </div>
@@ -273,10 +445,10 @@ export const PatientProfile: React.FC = () => {
                 visits.map((visit) => (
                   <tr key={visit.id} className="hover:bg-zinc-50 transition-colors">
                     <td className="px-6 py-4 text-sm text-zinc-700">
-                      {format(new Date(visit.scheduled_at), 'MMM d, yyyy h:mm a')}
+                      {visit.scheduled_at ? format(new Date(visit.scheduled_at), 'MMM d, yyyy h:mm a') : 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-zinc-900">
-                      {visit.type}
+                      {visit.type || 'N/A'}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${

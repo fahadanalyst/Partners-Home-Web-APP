@@ -12,6 +12,7 @@ import { MAR_Template } from '../components/PDFTemplates/MAR_Template';
 import { TAR_Template } from '../components/PDFTemplates/TAR_Template';
 import { ClinicalNoteTemplate } from '../components/PDFTemplates/ClinicalNoteTemplate';
 import { PatientResourceDataTemplate } from '../components/PDFTemplates/PatientResourceDataTemplate';
+import { PatientSummaryTemplate } from '../components/PDFTemplates/PatientSummaryTemplate';
 
 // Map of form names to their respective PDF templates
 const TEMPLATE_MAP: Record<string, any> = {
@@ -24,10 +25,11 @@ const TEMPLATE_MAP: Record<string, any> = {
   'Admission Assessment': AdmissionAssessmentTemplate,
   'Discharge Summary': DischargeSummaryTemplate,
   'Request for Services (RFS-1)': RequestForServicesTemplate,
-  'Medication Administration Record (MAR)': MAR_Template,
-  'Treatment Administration Record (TAR)': TAR_Template,
+  'Medication Administration Record': MAR_Template,
+  'Treatment Administration Record': TAR_Template,
   'Clinical Note': ClinicalNoteTemplate,
   'Patient Resource Data': PatientResourceDataTemplate,
+  'Patient Summary': PatientSummaryTemplate,
   // Add more templates as they are created
 };
 

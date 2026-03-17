@@ -75,7 +75,7 @@ export const GAFCProgressNoteTemplate: React.FC<GAFCProgressNoteTemplateProps> =
       </div>
 
       {/* Objective */}
-      <div className="space-y-4 page-break">
+      <div className="space-y-4">
         <h3 className="text-xs font-bold text-partners-blue-dark uppercase tracking-wider border-b border-zinc-100 pb-1">Observations (Objective)</h3>
         
         <div className="grid grid-cols-5 gap-4 bg-zinc-50 p-3 rounded-lg border border-zinc-100">
@@ -130,7 +130,7 @@ export const GAFCProgressNoteTemplate: React.FC<GAFCProgressNoteTemplateProps> =
       </div>
 
       {/* ADLs Table */}
-      <div className="space-y-2 page-break">
+      <div className="space-y-2">
         <h3 className="text-xs font-bold text-partners-blue-dark uppercase tracking-wider border-b border-zinc-100 pb-1">ADLs / IADLs Review</h3>
         <table className="w-full text-left border-collapse">
           <thead>
@@ -153,7 +153,7 @@ export const GAFCProgressNoteTemplate: React.FC<GAFCProgressNoteTemplateProps> =
       </div>
 
       {/* Assessment & Plan */}
-      <div className="grid grid-cols-1 gap-6 page-break">
+      <div className="grid grid-cols-1 gap-6">
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-partners-blue-dark uppercase tracking-wider border-b border-zinc-100 pb-1">Clinical Assessment</h3>
           <p className="text-sm text-zinc-700 leading-relaxed">{data.assessment || 'N/A'}</p>

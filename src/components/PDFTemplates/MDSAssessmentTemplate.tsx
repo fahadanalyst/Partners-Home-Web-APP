@@ -134,7 +134,7 @@ export const MDSAssessmentTemplate: React.FC<MDSAssessmentTemplateProps> = ({ da
         </div>
 
         {/* Summary */}
-        <section className="space-y-2 page-break">
+        <section className="space-y-2">
           <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Assessment Summary</h3>
           <div className="p-4 bg-zinc-50 rounded-lg border border-zinc-100 min-h-[150px]">
             <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-relaxed">

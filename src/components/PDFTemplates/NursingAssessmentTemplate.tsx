@@ -74,7 +74,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
         </section>
 
         {/* Systems Review */}
-        <div className="grid grid-cols-2 gap-6 page-break">
+        <div className="grid grid-cols-2 gap-6">
           {/* Neurological */}
           <section className="space-y-2">
             <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Neurological</h3>

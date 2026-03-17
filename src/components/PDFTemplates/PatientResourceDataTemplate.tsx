@@ -131,7 +131,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
         </section>
 
         {/* Resources Table */}
-        <section className="space-y-2 page-break">
+        <section className="space-y-2">
           <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Health and Community Resources</h3>
           <table className="w-full text-left border-collapse">
             <thead>

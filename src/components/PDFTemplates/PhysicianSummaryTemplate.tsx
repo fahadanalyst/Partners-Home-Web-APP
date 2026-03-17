@@ -161,7 +161,7 @@ export const PhysicianSummaryTemplate: React.FC<PhysicianSummaryTemplateProps> =
         </section>
 
         {/* Continence & Mental Status */}
-        <div className="grid grid-cols-2 gap-6 text-sm page-break">
+        <div className="grid grid-cols-2 gap-6 text-sm">
           <section className="space-y-2">
             <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Continence</h3>
             <div className="grid grid-cols-2 gap-2">

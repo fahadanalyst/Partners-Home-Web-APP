@@ -25,10 +25,20 @@ CREATE TABLE patients (
   dob DATE NOT NULL,
   gender TEXT,
   ssn_encrypted TEXT, -- PHI
-  address TEXT,
+  address_line1 TEXT,
+  address_line2 TEXT,
+  city TEXT,
+  state TEXT,
+  zip_code TEXT,
   phone TEXT,
   email TEXT,
   insurance_id TEXT,
+  status TEXT DEFAULT 'active',
+  mloa_days INTEGER DEFAULT 0,
+  nmloa_days INTEGER DEFAULT 0,
+  last_annual_physical DATE,
+  last_semi_annual_report DATE,
+  last_monthly_visit DATE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -38,7 +48,7 @@ CREATE TYPE visit_status AS ENUM ('scheduled', 'in-progress', 'completed', 'revi
 
 CREATE TABLE visits (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id UUID REFERENCES patients(id) NOT NULL,
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE NOT NULL,
   staff_id UUID REFERENCES profiles(id) NOT NULL,
   scheduled_at TIMESTAMPTZ NOT NULL,
   status visit_status DEFAULT 'scheduled',
@@ -61,8 +71,8 @@ CREATE TABLE forms (
 CREATE TABLE form_responses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   form_id UUID REFERENCES forms(id) NOT NULL,
-  visit_id UUID REFERENCES visits(id),
-  patient_id UUID REFERENCES patients(id) NOT NULL,
+  visit_id UUID REFERENCES visits(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE NOT NULL,
   staff_id UUID REFERENCES profiles(id) NOT NULL,
   data JSONB NOT NULL,
   status TEXT DEFAULT 'draft',
@@ -73,8 +83,8 @@ CREATE TABLE form_responses (
 -- 7. Clinical Notes
 CREATE TABLE clinical_notes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  visit_id UUID REFERENCES visits(id),
-  patient_id UUID REFERENCES patients(id) NOT NULL,
+  visit_id UUID REFERENCES visits(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE NOT NULL,
   staff_id UUID REFERENCES profiles(id) NOT NULL,
   content TEXT NOT NULL,
   icd_codes TEXT[],
@@ -110,7 +120,7 @@ CREATE TABLE audit_logs (
 -- 10. Files
 CREATE TABLE files (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  patient_id UUID REFERENCES patients(id),
+  patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
   uploaded_by UUID REFERENCES profiles(id),
   file_name TEXT NOT NULL,
   file_path TEXT NOT NULL,

@@ -32,10 +32,19 @@ const patientSchema = z.object({
   gender: z.string().min(1, 'Required'),
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  address: z.string().optional(),
+  address_line1: z.string().optional(),
+  address_line2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip_code: z.string().optional(),
   insurance_id: z.string().optional(),
   ssn_encrypted: z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
+  mloa_days: z.number().min(0).max(365).optional(),
+  nmloa_days: z.number().min(0).max(365).optional(),
+  last_annual_physical: z.string().optional().or(z.literal('')),
+  last_semi_annual_report: z.string().optional().or(z.literal('')),
+  last_monthly_visit: z.string().optional().or(z.literal('')),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -48,10 +57,19 @@ interface Patient {
   gender: string;
   phone: string | null;
   email: string | null;
-  address: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
   insurance_id: string | null;
   ssn_encrypted: string | null;
   status: 'active' | 'inactive';
+  mloa_days: number;
+  nmloa_days: number;
+  last_annual_physical: string | null;
+  last_semi_annual_report: string | null;
+  last_monthly_visit: string | null;
   created_at: string;
   last_visit?: string;
 }
@@ -68,7 +86,12 @@ export const Patients: React.FC = () => {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
-    resolver: zodResolver(patientSchema)
+    resolver: zodResolver(patientSchema),
+    defaultValues: {
+      mloa_days: 0,
+      nmloa_days: 0,
+      status: 'active'
+    }
   });
 
   const openEditModal = (patient: Patient) => {
@@ -79,10 +102,19 @@ export const Patients: React.FC = () => {
     setValue('gender', patient.gender);
     setValue('phone', patient.phone || '');
     setValue('email', patient.email || '');
-    setValue('address', patient.address || '');
+    setValue('address_line1', patient.address_line1 || '');
+    setValue('address_line2', patient.address_line2 || '');
+    setValue('city', patient.city || '');
+    setValue('state', patient.state || '');
+    setValue('zip_code', patient.zip_code || '');
     setValue('insurance_id', patient.insurance_id || '');
     setValue('ssn_encrypted', patient.ssn_encrypted || '');
     setValue('status', patient.status);
+    setValue('mloa_days', patient.mloa_days || 0);
+    setValue('nmloa_days', patient.nmloa_days || 0);
+    setValue('last_annual_physical', patient.last_annual_physical || '');
+    setValue('last_semi_annual_report', patient.last_semi_annual_report || '');
+    setValue('last_monthly_visit', patient.last_monthly_visit || '');
     setIsModalOpen(true);
   };
 
@@ -139,10 +171,19 @@ export const Patients: React.FC = () => {
         gender: data.gender,
         phone: data.phone,
         email: data.email,
-        address: data.address,
+        address_line1: data.address_line1,
+        address_line2: data.address_line2,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip_code,
         insurance_id: data.insurance_id,
         ssn_encrypted: data.ssn_encrypted,
-        status: data.status || 'active'
+        status: data.status || 'active',
+        mloa_days: data.mloa_days,
+        nmloa_days: data.nmloa_days,
+        last_annual_physical: data.last_annual_physical || null,
+        last_semi_annual_report: data.last_semi_annual_report || null,
+        last_monthly_visit: data.last_monthly_visit || null
       };
 
       if (editingPatient) {
@@ -183,25 +224,18 @@ export const Patients: React.FC = () => {
     if (!patientToDelete) return;
 
     try {
-      const { error, data: deletedData } = await supabase
-        .from('patients')
-        .delete()
-        .eq('id', patientToDelete)
-        .select();
+      const response = await fetch('/api/patients/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: patientToDelete })
+      });
 
-      if (error) throw error;
-      
-      // If no error but no data, check if it actually existed
-      if (!deletedData || deletedData.length === 0) {
-        const { data: check } = await supabase.from('patients').select('id').eq('id', patientToDelete).maybeSingle();
-        if (check) {
-          throw new Error('Failed to delete the record. It might be protected by database constraints.');
-        }
-      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to delete patient');
       
       // Refresh data from server to ensure sync
       await fetchPatients();
-      setNotification({ type: 'success', message: 'Patient record deleted successfully.' });
+      setNotification({ type: 'success', message: 'Patient record and all related data deleted successfully.' });
     } catch (error: any) {
       console.error('Error deleting patient:', error);
       setNotification({ type: 'error', message: 'Error deleting patient: ' + (error.message || 'Check console for details') });
@@ -511,16 +545,100 @@ export const Patients: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700">Address</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-3 text-zinc-400" size={18} />
-              <textarea
-                {...register('address')}
-                rows={2}
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                placeholder="123 Main St, City, State, Zip"
-              />
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Address Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-zinc-700">Street Address (Line 1)</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                  <input
+                    {...register('address_line1')}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="123 Main St"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Apt./Suite/Unit (Line 2)</label>
+                <input
+                  {...register('address_line2')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Apt 4B"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">City (Line 3)</label>
+                <input
+                  {...register('city')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Boston"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">State (Line 4)</label>
+                <input
+                  {...register('state')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="MA"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Zip Code (Line 5)</label>
+                <input
+                  {...register('zip_code')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="02108"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Compliance Tracking</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Medical Leave (MLOA) Days Used</label>
+                <input
+                  type="number"
+                  {...register('mloa_days', { valueAsNumber: true })}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+                <p className="text-[10px] text-zinc-400 italic">Limit: 30 days annually</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Non-Medical Leave (NMLOA) Days Used</label>
+                <input
+                  type="number"
+                  {...register('nmloa_days', { valueAsNumber: true })}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+                <p className="text-[10px] text-zinc-400 italic">Limit: 45 days annually</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Last Annual Physical</label>
+                <input
+                  type="date"
+                  {...register('last_annual_physical')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Last Semi-Annual Health Status</label>
+                <input
+                  type="date"
+                  {...register('last_semi_annual_report')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-zinc-700">Last Monthly Visit</label>
+                <input
+                  type="date"
+                  {...register('last_monthly_visit')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
             </div>
           </div>
 

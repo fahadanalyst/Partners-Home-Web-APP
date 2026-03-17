@@ -30,14 +30,19 @@ export const BasePDFTemplate: React.FC<BasePDFTemplateProps> = ({ title, childre
         .bg-partners-green { background-color: #00A651 !important; }
         .text-partners-green { color: #00A651 !important; }
         .border-partners-blue-dark { border-color: #005696 !important; }
+        .border-partners-blue-dark\\/20 { border-color: rgba(0, 86, 150, 0.2) !important; }
         .text-zinc-900 { color: #18181b !important; }
+        .text-zinc-800 { color: #27272a !important; }
         .text-zinc-700 { color: #3f3f46 !important; }
         .text-zinc-600 { color: #52525b !important; }
         .text-zinc-500 { color: #71717a !important; }
         .text-zinc-400 { color: #a1a1aa !important; }
         .bg-zinc-50 { background-color: #fafafa !important; }
-        .border-zinc-200 { border-color: #e4e4e7 !important; }
+        .bg-zinc-100 { background-color: #f4f4f5 !important; }
         .border-zinc-100 { border-color: #f4f4f5 !important; }
+        .border-zinc-200 { border-color: #e4e4e7 !important; }
+        .border-zinc-300 { border-color: #d4d4d8 !important; }
+        .border-zinc-400 { border-color: #a1a1aa !important; }
         
         .page-break {
           page-break-before: always !important;

@@ -85,7 +85,7 @@ export const GAFCCarePlanTemplate: React.FC<GAFCCarePlanTemplateProps> = ({ data
       </div>
 
       {/* Interventions Table */}
-      <div className="space-y-2 page-break">
+      <div className="space-y-2">
         <h3 className="text-xs font-bold text-partners-blue-dark uppercase tracking-wider border-b border-zinc-100 pb-1">Interventions & Services</h3>
         <table className="w-full text-left border-collapse">
           <thead>
