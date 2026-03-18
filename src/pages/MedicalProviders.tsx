@@ -27,7 +27,11 @@ const providerSchema = z.object({
   first_name: z.string().min(1, 'Required'),
   last_name: z.string().min(1, 'Required'),
   facility_name: z.string().min(1, 'Required'),
-  address: z.string().optional(),
+  street: z.string().optional(),
+  apt: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
   phone: z.string().optional(),
   fax: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
@@ -40,7 +44,11 @@ interface MedicalProvider {
   first_name: string;
   last_name: string;
   facility_name: string;
-  address: string | null;
+  street: string | null;
+  apt: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   phone: string | null;
   fax: string | null;
   email: string | null;
@@ -150,7 +158,11 @@ export const MedicalProviders: React.FC = () => {
     setValue('first_name', provider.first_name);
     setValue('last_name', provider.last_name);
     setValue('facility_name', provider.facility_name);
-    setValue('address', provider.address || '');
+    setValue('street', provider.street || '');
+    setValue('apt', provider.apt || '');
+    setValue('city', provider.city || '');
+    setValue('state', provider.state || '');
+    setValue('zip', provider.zip || '');
     setValue('phone', provider.phone || '');
     setValue('fax', provider.fax || '');
     setValue('email', provider.email || '');
@@ -255,10 +267,14 @@ export const MedicalProviders: React.FC = () => {
                       <span className="truncate">{provider.email}</span>
                     </div>
                   )}
-                  {provider.address && (
+                  {(provider.street || provider.city) && (
                     <div className="flex items-start gap-2 text-sm text-zinc-600">
                       <MapPin size={14} className="text-zinc-400 mt-0.5" />
-                      <span className="line-clamp-2">{provider.address}</span>
+                      <span className="line-clamp-2">
+                        {provider.street}{provider.apt ? `, ${provider.apt}` : ''}
+                        {(provider.street || provider.apt) && (provider.city || provider.state || provider.zip) ? <br /> : ''}
+                        {provider.city}{provider.city && (provider.state || provider.zip) ? ', ' : ''}{provider.state} {provider.zip}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -313,16 +329,54 @@ export const MedicalProviders: React.FC = () => {
             {errors.facility_name && <p className="text-xs text-red-500">{errors.facility_name.message}</p>}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700">Address</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-3 text-zinc-400" size={18} />
-              <textarea
-                {...register('address')}
-                rows={2}
-                className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                placeholder="123 Medical Way, Suite 100, City, State, Zip"
-              />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-3 space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Street Address</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                  <input
+                    {...register('street')}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="123 Medical Way"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Apt/Suite</label>
+                <input
+                  {...register('apt')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Suite 400"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">City</label>
+                <input
+                  {...register('city')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Boston"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">State</label>
+                <input
+                  {...register('state')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="MA"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1 space-y-2">
+                <label className="text-sm font-medium text-zinc-700">ZIP Code</label>
+                <input
+                  {...register('zip')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="02114"
+                />
+              </div>
             </div>
           </div>
 

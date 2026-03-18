@@ -89,14 +89,29 @@ export const generatePDFFromTemplate = async (
     const chunks: HTMLElement[][] = [[]];
     let currentChunkIndex = 0;
     
-    // Improved chunking: only break if the element has 'page-break' AND it's not the first element in the chunk
-    // or if the chunk is getting too large (though we don't know the height yet)
+    // Improved chunking: break by top-level children of .pdf-content
+    // If an element is too tall, we still have an issue, but this allows more granular pages
     contentElements.forEach((el, index) => {
+      const elementHeight = (el as HTMLElement).offsetHeight;
+      const estimatedPageHeightPx = 1100; // Rough estimate for A4 at 96dpi
+      
       if (el.classList.contains('page-break') && chunks[currentChunkIndex].length > 0) {
         chunks.push([el as HTMLElement]);
         currentChunkIndex++;
       } else {
-        chunks[currentChunkIndex].push(el as HTMLElement);
+        // Simple heuristic: if adding this element makes the chunk too tall, start a new page
+        // This is not perfect because of margins/padding but better than 1 page
+        let currentChunkHeight = 0;
+        chunks[currentChunkIndex].forEach(chunkEl => {
+          currentChunkHeight += chunkEl.offsetHeight;
+        });
+
+        if (currentChunkHeight + elementHeight > estimatedPageHeightPx && chunks[currentChunkIndex].length > 0) {
+          chunks.push([el as HTMLElement]);
+          currentChunkIndex++;
+        } else {
+          chunks[currentChunkIndex].push(el as HTMLElement);
+        }
       }
     });
 

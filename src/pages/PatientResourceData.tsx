@@ -19,7 +19,11 @@ const FORM_NAME = 'Patient Resource Data';
 const resourceSchema = z.object({
   patient: z.object({
     name: z.string().min(1, 'Required'),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    apt: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip: z.string().optional(),
     gender: z.enum(['Male', 'Female']).optional(),
     mrNumber: z.string().optional(),
     admissionDate: z.string().optional(),
@@ -37,7 +41,11 @@ const resourceSchema = z.object({
   emergencyContact: z.object({
     name: z.string().optional(),
     relationship: z.string().optional(),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    apt: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip: z.string().optional(),
     telephoneHome: z.string().optional(),
     telephoneBusiness: z.string().optional(),
   }),
@@ -101,13 +109,17 @@ export const PatientResourceData: React.FC = () => {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
-          .select('first_name, last_name, dob, gender, phone, address, insurance_id')
+          .select('first_name, last_name, dob, gender, phone, street, apt, city, state, zip, insurance_id')
           .eq('id', patientId)
           .single();
         
         if (data && !error) {
           setValue('patient.name', `${data.first_name} ${data.last_name}`);
-          setValue('patient.address', data.address || '');
+          setValue('patient.street', data.street || '');
+          setValue('patient.apt', data.apt || '');
+          setValue('patient.city', data.city || '');
+          setValue('patient.state', data.state || '');
+          setValue('patient.zip', data.zip || '');
           setValue('patient.phone', data.phone || '');
           setValue('patient.gender', data.gender === 'female' ? 'Female' : 'Male');
           setValue('demographics.dob', data.dob);
@@ -256,7 +268,17 @@ export const PatientResourceData: React.FC = () => {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-zinc-700">Address</label>
-              <textarea {...register('patient.address')} rows={2} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              <div className="grid grid-cols-1 gap-2">
+                <input {...register('patient.street')} placeholder="Street" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input {...register('patient.apt')} placeholder="Apt/Suite" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                  <input {...register('patient.city')} placeholder="City" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input {...register('patient.state')} placeholder="State" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                  <input {...register('patient.zip')} placeholder="Zip" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+              </div>
             </div>
           </div>
           <div className="space-y-4">
@@ -360,7 +382,17 @@ export const PatientResourceData: React.FC = () => {
             </div>
             <div className="space-y-1 col-span-full">
               <label className="text-sm font-medium text-zinc-700">Address</label>
-              <input {...register('emergencyContact.address')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              <div className="grid grid-cols-1 gap-2">
+                <input {...register('emergencyContact.street')} placeholder="Street" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input {...register('emergencyContact.apt')} placeholder="Apt/Suite" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                  <input {...register('emergencyContact.city')} placeholder="City" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input {...register('emergencyContact.state')} placeholder="State" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                  <input {...register('emergencyContact.zip')} placeholder="Zip" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-zinc-700">Telephone: Home</label>

@@ -219,7 +219,7 @@ export const Referrals: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50">
@@ -235,7 +235,7 @@ export const Referrals: React.FC = () => {
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-8 h-8 border-4 border-partners-blue-dark border-t-transparent rounded-full animate-spin"></div>
                       <p className="font-medium">Loading referrals...</p>
@@ -244,7 +244,7 @@ export const Referrals: React.FC = () => {
                 </tr>
               ) : filteredReferrals.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-zinc-500">
                     <div className="flex flex-col items-center gap-2">
                       <Users size={48} className="text-zinc-200" />
                       <p className="font-medium">No referrals found</p>
@@ -339,6 +339,95 @@ export const Referrals: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
+          {loading ? (
+            <div className="flex flex-col items-center py-12 gap-2">
+              <div className="w-8 h-8 border-4 border-partners-blue-dark border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-zinc-500 font-medium">Loading referrals...</p>
+            </div>
+          ) : filteredReferrals.length === 0 ? (
+            <div className="flex flex-col items-center py-12 gap-2 text-zinc-500">
+              <Users size={48} className="text-zinc-200" />
+              <p className="font-medium">No referrals found</p>
+            </div>
+          ) : (
+            filteredReferrals.map((referral) => (
+              <div key={referral.id} className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-partners-blue-dark/10 flex items-center justify-center text-partners-blue-dark font-bold">
+                      {referral.referrer_name[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-zinc-900">{referral.referrer_name}</p>
+                      <p className="text-xs text-zinc-500">
+                        {format(new Date(referral.created_at), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setReferralToDelete(referral.id);
+                      setIsDeleteModalOpen(true);
+                    }}
+                    className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 py-3 border-y border-zinc-50">
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Patient</p>
+                    <p className="text-sm font-medium text-zinc-700">
+                      {referral.patient ? `${referral.patient.first_name} ${referral.patient.last_name}` : 'No patient linked'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Relationship</p>
+                    <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded-full text-[10px] font-bold">
+                      {referral.relationship || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {referral.phone && (
+                    <div className="flex items-center gap-2 text-sm text-zinc-600">
+                      <Phone size={14} className="text-zinc-400" />
+                      {referral.phone}
+                    </div>
+                  )}
+                  {referral.email && (
+                    <div className="flex items-center gap-2 text-sm text-zinc-600">
+                      <Mail size={14} className="text-zinc-400" />
+                      {referral.email}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <select
+                    value={referral.status || 'Pending'}
+                    onChange={(e) => updateReferralStatus(referral.id, e.target.value)}
+                    className={clsx(
+                      "w-full px-3 py-2 rounded-xl text-xs font-bold border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none cursor-pointer",
+                      referral.status === 'Approved' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                      referral.status === 'Rejected' ? "bg-red-50 text-red-700 border-red-100" :
+                      "bg-amber-50 text-amber-700 border-amber-100"
+                    )}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

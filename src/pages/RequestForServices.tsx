@@ -24,8 +24,10 @@ const rfsSchema = z.object({
     lastName: z.string().min(1, 'Required'),
     firstName: z.string().min(1, 'Required'),
     telephone: z.string().optional(),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    apt: z.string().optional(),
     city: z.string().optional(),
+    state: z.string().optional(),
     zip: z.string().optional(),
     status: z.enum(['MassHealth member', 'MassHealth application pending', 'GAFC/Assisted living residence']).optional(),
     masshealthId: z.string().optional(),
@@ -36,16 +38,20 @@ const rfsSchema = z.object({
     lastName: z.string().optional(),
     firstName: z.string().optional(),
     telephone: z.string().optional(),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    apt: z.string().optional(),
     city: z.string().optional(),
+    state: z.string().optional(),
     zip: z.string().optional(),
   }),
   physician: z.object({
     lastName: z.string().optional(),
     firstName: z.string().optional(),
     telephone: z.string().optional(),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    apt: z.string().optional(),
     city: z.string().optional(),
+    state: z.string().optional(),
     zip: z.string().optional(),
   }),
   screening: z.object({
@@ -79,8 +85,10 @@ const rfsSchema = z.object({
     title: z.string().min(1, 'Required'),
     organization: z.string().optional(),
     telephone: z.string().optional(),
-    address: z.string().optional(),
+    street: z.string().optional(),
+    apt: z.string().optional(),
     city: z.string().optional(),
+    state: z.string().optional(),
     zip: z.string().optional(),
   }),
 });
@@ -130,7 +138,7 @@ export const RequestForServices: React.FC = () => {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
-          .select('first_name, last_name, phone, address')
+          .select('first_name, last_name, phone, street, apt, city, state, zip')
           .eq('id', patientId)
           .single();
         
@@ -138,7 +146,11 @@ export const RequestForServices: React.FC = () => {
           setValue('memberInfo.firstName', data.first_name);
           setValue('memberInfo.lastName', data.last_name);
           setValue('memberInfo.telephone', data.phone || '');
-          setValue('memberInfo.address', data.address || '');
+          setValue('memberInfo.street', data.street || '');
+          setValue('memberInfo.apt', data.apt || '');
+          setValue('memberInfo.city', data.city || '');
+          setValue('memberInfo.state', data.state || '');
+          setValue('memberInfo.zip', data.zip || '');
         }
       };
       fetchPatient();
@@ -372,11 +384,22 @@ export const RequestForServices: React.FC = () => {
             </div>
             <div className="space-y-1 col-span-full">
               <label className="text-sm font-medium text-zinc-700">Address</label>
-              <input {...register('memberInfo.address')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-3">
+                  <input {...register('memberInfo.street')} placeholder="Street" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+                <div>
+                  <input {...register('memberInfo.apt')} placeholder="Apt/Suite" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-zinc-700">City</label>
               <input {...register('memberInfo.city')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700">State</label>
+              <input {...register('memberInfo.state')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-zinc-700">Zip</label>
@@ -427,8 +450,10 @@ export const RequestForServices: React.FC = () => {
               <input {...register('nextOfKin.lastName')} placeholder="Last Name" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('nextOfKin.firstName')} placeholder="First Name" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('nextOfKin.telephone')} placeholder="Telephone" className="col-span-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
-              <input {...register('nextOfKin.address')} placeholder="Address" className="col-span-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <input {...register('nextOfKin.street')} placeholder="Street" className="col-span-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <input {...register('nextOfKin.apt')} placeholder="Apt/Suite" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('nextOfKin.city')} placeholder="City" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <input {...register('nextOfKin.state')} placeholder="State" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('nextOfKin.zip')} placeholder="Zip" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
             </div>
           </div>
@@ -442,8 +467,10 @@ export const RequestForServices: React.FC = () => {
               <input {...register('physician.lastName')} placeholder="Last Name" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('physician.firstName')} placeholder="First Name" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('physician.telephone')} placeholder="Telephone" className="col-span-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
-              <input {...register('physician.address')} placeholder="Address" className="col-span-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <input {...register('physician.street')} placeholder="Street" className="col-span-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <input {...register('physician.apt')} placeholder="Apt/Suite" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('physician.city')} placeholder="City" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <input {...register('physician.state')} placeholder="State" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               <input {...register('physician.zip')} placeholder="Zip" className="px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
             </div>
           </div>
@@ -653,12 +680,23 @@ export const RequestForServices: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-zinc-700">Address</label>
-                <input {...register('referralSource.address')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-3">
+                    <input {...register('referralSource.street')} placeholder="Street" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                  </div>
+                  <div>
+                    <input {...register('referralSource.apt')} placeholder="Apt/Suite" className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-zinc-700">City</label>
                   <input {...register('referralSource.city')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-zinc-700">State</label>
+                  <input {...register('referralSource.state')} className="w-full px-4 py-2 rounded-xl border border-zinc-200" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-zinc-700">Zip</label>

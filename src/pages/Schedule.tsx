@@ -287,7 +287,7 @@ export const Schedule: React.FC = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 italic">Schedule</h1>
           <p className="text-sm md:text-base text-zinc-500">Manage nursing visits and caregiver appointments</p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:flex-none">
             <Button 
               variant="secondary" 
@@ -299,7 +299,7 @@ export const Schedule: React.FC = () => {
             </Button>
             
             {isFilterOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-zinc-100 z-10 p-2">
+              <div className="absolute right-0 md:right-0 left-0 md:left-auto mt-2 w-full md:w-64 bg-white rounded-2xl shadow-xl border border-zinc-100 z-50 p-2 max-h-[60vh] overflow-y-auto">
                 {['all', 'Scheduled', 'Approved', 'Cancelled', 'Client Cancelled – Health (MLOA)', 'Client Cancelled – Non-Medical (NMLOA)', 'Staff Cancelled', 'Office Cancelled', 'Verified'].map((status) => (
                   <button
                     key={status}

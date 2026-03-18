@@ -32,11 +32,11 @@ interface Patient {
   gender: string;
   phone: string | null;
   email: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
+  street: string | null;
+  apt: string | null;
   city: string | null;
   state: string | null;
-  zip_code: string | null;
+  zip: string | null;
   insurance_id: string | null;
   ssn_encrypted: string | null;
   status: string;
@@ -300,11 +300,11 @@ export const PatientProfile: React.FC = () => {
               <div className="space-y-1">
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Address</p>
                 <div className="text-zinc-700 leading-relaxed">
-                  {patient.address_line1 ? (
+                  {patient.street ? (
                     <>
-                      <p>{patient.address_line1}</p>
-                      {patient.address_line2 && <p>{patient.address_line2}</p>}
-                      <p>{patient.city}, {patient.state} {patient.zip_code}</p>
+                      <p>{patient.street}</p>
+                      {patient.apt && <p>{patient.apt}</p>}
+                      <p>{patient.city}, {patient.state} {patient.zip}</p>
                     </>
                   ) : (
                     'Not provided'

@@ -188,11 +188,11 @@ export const GAFCProgressNote: React.FC = () => {
           if (data.pcp_id) setValue('gafcProvider', data.pcp_id);
           
           const fullAddress = [
-            data.address_line1,
-            data.address_line2,
+            data.street,
+            data.apt,
             data.city,
             data.state,
-            data.zip_code
+            data.zip
           ].filter(Boolean).join(', ');
           
           if (fullAddress) setValue('location', fullAddress);

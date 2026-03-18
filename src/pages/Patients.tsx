@@ -32,11 +32,11 @@ const patientSchema = z.object({
   gender: z.string().min(1, 'Required'),
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  address_line1: z.string().optional(),
-  address_line2: z.string().optional(),
+  street: z.string().optional(),
+  apt: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  zip_code: z.string().optional(),
+  zip: z.string().optional(),
   insurance_id: z.string().optional(),
   ssn_encrypted: z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
@@ -107,11 +107,11 @@ interface Patient {
   gender: string;
   phone: string | null;
   email: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
+  street: string | null;
+  apt: string | null;
   city: string | null;
   state: string | null;
-  zip_code: string | null;
+  zip: string | null;
   insurance_id: string | null;
   ssn_encrypted: string | null;
   status: 'active' | 'inactive';
@@ -229,11 +229,11 @@ export const Patients: React.FC = () => {
     setValue('gender', patient.gender);
     setValue('phone', patient.phone || '');
     setValue('email', patient.email || '');
-    setValue('address_line1', patient.address_line1 || '');
-    setValue('address_line2', patient.address_line2 || '');
+    setValue('street', patient.street || '');
+    setValue('apt', patient.apt || '');
     setValue('city', patient.city || '');
     setValue('state', patient.state || '');
-    setValue('zip_code', patient.zip_code || '');
+    setValue('zip', patient.zip || '');
     setValue('insurance_id', patient.insurance_id || '');
     setValue('ssn_encrypted', patient.ssn_encrypted || '');
     setValue('status', patient.status);
@@ -356,11 +356,11 @@ export const Patients: React.FC = () => {
         gender: data.gender,
         phone: data.phone,
         email: data.email,
-        address_line1: data.address_line1,
-        address_line2: data.address_line2,
+        street: data.street,
+        apt: data.apt,
         city: data.city,
         state: data.state,
-        zip_code: data.zip_code,
+        zip: data.zip,
         insurance_id: data.insurance_id,
         ssn_encrypted: data.ssn_encrypted,
         status: data.status || 'active',
@@ -927,7 +927,7 @@ export const Patients: React.FC = () => {
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium text-zinc-700">Address (Street)</label>
                 <input
-                  {...register('address_line1')}
+                  {...register('street')}
                   className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
                   placeholder="Street Address"
                 />
@@ -935,7 +935,7 @@ export const Patients: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-700">Apt</label>
                 <input
-                  {...register('address_line2')}
+                  {...register('apt')}
                   className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
                   placeholder="Apt #"
                 />
@@ -959,7 +959,7 @@ export const Patients: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-700">Zip</label>
                 <input
-                  {...register('zip_code')}
+                  {...register('zip')}
                   className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
                   placeholder="Zip Code"
                 />

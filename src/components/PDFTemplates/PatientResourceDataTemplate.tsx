@@ -48,7 +48,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
             </div>
             <div className="col-span-2">
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Address</p>
-              <p className="font-medium">{patient.address || 'N/A'}</p>
+              <p className="font-medium">{patient.street}{patient.apt ? `, ${patient.apt}` : ''}, {patient.city}, {patient.state} {patient.zip}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Telephone</p>
@@ -117,7 +117,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
             </div>
             <div className="col-span-2">
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Address</p>
-              <p className="font-medium">{emergencyContact.address || 'N/A'}</p>
+              <p className="font-medium">{emergencyContact.street}{emergencyContact.apt ? `, ${emergencyContact.apt}` : ''}, {emergencyContact.city}, {emergencyContact.state} {emergencyContact.zip}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Telephone (Home)</p>

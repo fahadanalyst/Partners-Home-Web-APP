@@ -1,29 +1,34 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '../components/Button';
 import { ClipboardCheck, Send, ArrowLeft, Loader2, FileText } from 'lucide-react';
 import { SignaturePad } from '../components/SignaturePad';
 import { Logo } from '../components/Logo';
 import { Notification, NotificationType } from '../components/Notification';
-import { supabase, getFormIdByName } from '../services/supabase';
+import { supabase, getFormIdByName, withTimeout, withRetry } from '../services/supabase';
 import { generateFormPDF } from '../services/pdfService';
 import { useAuth } from '../context/AuthContext';
+
+const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
 
 const dischargeSchema = z.object({
   date: z.string().min(1, 'Required'),
   patientName: z.string().min(1, 'Required'),
   dischargeReason: z.string().min(1, 'Required'),
   summary: z.string().min(1, 'Required'),
-  signature: z.string().optional()
+  signature: z.string().min(1, 'Signature required')
 });
 
 type DischargeValues = z.infer<typeof dischargeSchema>;
 
 export const DischargeSummary: React.FC = () => {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const patientIdFromUrl = searchParams.get('patientId');
+  const patientId = patientIdFromUrl || DUMMY_PATIENT_ID;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
@@ -41,17 +46,24 @@ export const DischargeSummary: React.FC = () => {
     setIsSubmitting(true);
     try {
       const formId = await getFormIdByName('Discharge Summary');
-      const { error } = await supabase.from('form_responses').insert([{
-        form_id: formId,
-        patient_id: '00000000-0000-0000-0000-000000000000',
-        submitted_by: profile.id,
-        data: data,
-        status: 'submitted'
-      }]);
+      
+      // Use withRetry and withTimeout for more robust submission
+      const { error } = await withRetry(() => withTimeout(
+        supabase.from('form_responses').insert([{
+          form_id: formId,
+          patient_id: patientId,
+          staff_id: profile.id,
+          data: data,
+          status: 'submitted'
+        }]),
+        30000
+      ));
+
       if (error) throw error;
       setNotification({ type: 'success', message: 'Discharge Summary submitted successfully!' });
     } catch (error: any) {
-      setNotification({ type: 'error', message: `Error: ${error.message}` });
+      console.error('Discharge Summary: Submission error:', error);
+      setNotification({ type: 'error', message: `Error: ${error.message || 'Failed to submit form'}` });
     } finally {
       setIsSubmitting(false);
     }
@@ -85,24 +97,24 @@ export const DischargeSummary: React.FC = () => {
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div className="flex items-center gap-4">
           <Logo showText size={48} />
           <div>
-            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
               <ClipboardCheck className="text-partners-green" />
               Discharge Summary
             </h2>
-            <p className="text-partners-gray">Final documentation for patient discharge.</p>
+            <p className="text-sm sm:text-base text-partners-gray">Final documentation for patient discharge.</p>
           </div>
         </div>
-        <div className="flex gap-3 no-print">
+        <div className="flex flex-wrap gap-3 no-print w-full sm:w-auto">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint} 
             disabled={isGeneratingPDF}
-            className="h-11 px-6 rounded-xl shadow-sm"
+            className="flex-1 sm:flex-none h-11 px-4 sm:px-6 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -115,7 +127,7 @@ export const DischargeSummary: React.FC = () => {
             type="button" 
             onClick={handleSubmit(onSubmit)} 
             disabled={isSubmitting}
-            className="h-11 px-8 rounded-xl shadow-md"
+            className="flex-1 sm:flex-none h-11 px-4 sm:px-8 rounded-xl shadow-md"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -127,27 +139,32 @@ export const DischargeSummary: React.FC = () => {
         ref={formRef} 
         className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-zinc-700">Date</label>
             <input type="date" {...register('date')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+            {errors.date && <p className="text-xs text-red-500">{errors.date.message}</p>}
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-zinc-700">Patient Name</label>
             <input {...register('patientName')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+            {errors.patientName && <p className="text-xs text-red-500">{errors.patientName.message}</p>}
           </div>
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-zinc-700">Reason for Discharge</label>
           <input {...register('dischargeReason')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+          {errors.dischargeReason && <p className="text-xs text-red-500">{errors.dischargeReason.message}</p>}
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-zinc-700">Summary of Care</label>
           <textarea {...register('summary')} rows={10} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none" />
+          {errors.summary && <p className="text-xs text-red-500">{errors.summary.message}</p>}
         </div>
         <div className="space-y-4">
           <label className="text-sm font-medium text-zinc-700">Signature</label>
           <SignaturePad onSave={(sig) => setValue('signature', sig)} />
+          {errors.signature && <p className="text-xs text-red-500">{errors.signature.message}</p>}
         </div>
       </form>
       {notification && (

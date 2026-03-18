@@ -70,7 +70,7 @@ export const RequestForServicesTemplate: React.FC<RequestForServicesTemplateProp
             </div>
             <div className="col-span-2">
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Address</p>
-              <p className="font-medium">{memberInfo.address}, {memberInfo.city}, {memberInfo.zip}</p>
+              <p className="font-medium">{memberInfo.street}{memberInfo.apt ? `, ${memberInfo.apt}` : ''}, {memberInfo.city}, {memberInfo.state} {memberInfo.zip}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Status</p>
@@ -86,7 +86,7 @@ export const RequestForServicesTemplate: React.FC<RequestForServicesTemplateProp
             <div className="text-xs space-y-1">
               <p><span className="font-bold text-zinc-400 uppercase">Name:</span> {nextOfKin.firstName} {nextOfKin.lastName}</p>
               <p><span className="font-bold text-zinc-400 uppercase">Phone:</span> {nextOfKin.telephone}</p>
-              <p><span className="font-bold text-zinc-400 uppercase">Address:</span> {nextOfKin.address}, {nextOfKin.city}, {nextOfKin.zip}</p>
+              <p><span className="font-bold text-zinc-400 uppercase">Address:</span> {nextOfKin.street}{nextOfKin.apt ? `, ${nextOfKin.apt}` : ''}, {nextOfKin.city}, {nextOfKin.state} {nextOfKin.zip}</p>
             </div>
           </section>
           <section className="space-y-3">
@@ -94,7 +94,7 @@ export const RequestForServicesTemplate: React.FC<RequestForServicesTemplateProp
             <div className="text-xs space-y-1">
               <p><span className="font-bold text-zinc-400 uppercase">Name:</span> {physician.firstName} {physician.lastName}</p>
               <p><span className="font-bold text-zinc-400 uppercase">Phone:</span> {physician.telephone}</p>
-              <p><span className="font-bold text-zinc-400 uppercase">Address:</span> {physician.address}, {physician.city}, {physician.zip}</p>
+              <p><span className="font-bold text-zinc-400 uppercase">Address:</span> {physician.street}{physician.apt ? `, ${physician.apt}` : ''}, {physician.city}, {physician.state} {physician.zip}</p>
             </div>
           </section>
         </div>
@@ -158,7 +158,7 @@ export const RequestForServicesTemplate: React.FC<RequestForServicesTemplateProp
             <div className="text-[10px] space-y-1">
               <p><span className="font-bold text-zinc-400 uppercase">Organization:</span> {referralSource.organization}</p>
               <p><span className="font-bold text-zinc-400 uppercase">Telephone:</span> {referralSource.telephone}</p>
-              <p><span className="font-bold text-zinc-400 uppercase">Address:</span> {referralSource.address}, {referralSource.city}, {referralSource.zip}</p>
+              <p><span className="font-bold text-zinc-400 uppercase">Address:</span> {referralSource.street}{referralSource.apt ? `, ${referralSource.apt}` : ''}, {referralSource.city}, {referralSource.state} {referralSource.zip}</p>
             </div>
           </div>
         </section>
