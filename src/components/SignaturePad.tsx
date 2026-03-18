@@ -6,11 +6,19 @@ import { RotateCcw } from 'lucide-react';
 interface SignaturePadProps {
   onSave: (signature: string) => void;
   label?: string;
+  initialValue?: string;
 }
 
-export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, label = "Signature" }) => {
+export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, label = "Signature", initialValue }) => {
   const sigPad = useRef<SignatureCanvas>(null);
-  const [preview, setPreview] = React.useState<string | null>(null);
+  const [preview, setPreview] = React.useState<string | null>(initialValue || null);
+
+  React.useEffect(() => {
+    if (initialValue && sigPad.current) {
+      sigPad.current.fromDataURL(initialValue);
+      setPreview(initialValue);
+    }
+  }, [initialValue]);
 
   const clear = () => {
     sigPad.current?.clear();

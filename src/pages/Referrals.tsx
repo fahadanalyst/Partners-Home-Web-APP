@@ -18,6 +18,7 @@ import {
 import { supabase } from '../services/supabase';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { Notification } from '../components/Notification';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
@@ -61,6 +62,8 @@ export const Referrals: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'warning', message: string } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [referralToDelete, setReferralToDelete] = useState<string | null>(null);
   const [selectedReferral, setSelectedReferral] = useState<Referral | null>(null);
   const [patients, setPatients] = useState<{id: string, first_name: string, last_name: string}[]>([]);
 
@@ -130,8 +133,6 @@ export const Referrals: React.FC = () => {
   };
 
   const deleteReferral = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this referral record?')) return;
-
     try {
       const response = await fetch('/api/referrals/delete', {
         method: 'POST',
@@ -322,7 +323,10 @@ export const Referrals: React.FC = () => {
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => deleteReferral(referral.id)}
+                          onClick={() => {
+                            setReferralToDelete(referral.id);
+                            setIsDeleteModalOpen(true);
+                          }}
                           className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                           title="Delete"
                         >
@@ -448,6 +452,23 @@ export const Referrals: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setReferralToDelete(null);
+        }}
+        onConfirm={() => {
+          if (referralToDelete) {
+            deleteReferral(referralToDelete);
+          }
+        }}
+        title="Delete Referral"
+        message="Are you sure you want to delete this referral record? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 };

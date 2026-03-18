@@ -28,26 +28,35 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 
-const StatCard = ({ title, value, icon: Icon, trend, color, loading }: any) => (
-  <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-    <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-2xl ${color} bg-opacity-10`}>
-        <Icon className={color.replace('bg-', 'text-')} size={24} />
+const StatCard = ({ title, value, icon: Icon, trend, color, loading }: any) => {
+  const getIconColor = (bgClass: string) => {
+    if (bgClass.includes('blue')) return 'text-blue-600';
+    if (bgClass.includes('emerald')) return 'text-emerald-600';
+    if (bgClass.includes('amber')) return 'text-amber-600';
+    return 'text-zinc-600';
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-2xl ${color} bg-opacity-10`}>
+          <Icon className={getIconColor(color)} size={24} />
+        </div>
+        {trend && (
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+            {trend}
+          </span>
+        )}
       </div>
-      {trend && (
-        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-          {trend}
-        </span>
+      <h3 className="text-zinc-500 text-sm font-medium">{title}</h3>
+      {loading ? (
+        <div className="h-8 w-16 bg-zinc-100 animate-pulse rounded mt-1"></div>
+      ) : (
+        <p className="text-2xl font-bold text-zinc-900 mt-1">{value}</p>
       )}
     </div>
-    <h3 className="text-zinc-500 text-sm font-medium">{title}</h3>
-    {loading ? (
-      <div className="h-8 w-16 bg-zinc-100 animate-pulse rounded mt-1"></div>
-    ) : (
-      <p className="text-2xl font-bold text-zinc-900 mt-1">{value}</p>
-    )}
-  </div>
-);
+  );
+};
 
 export const Dashboard: React.FC = () => {
   const { profile } = useAuth();

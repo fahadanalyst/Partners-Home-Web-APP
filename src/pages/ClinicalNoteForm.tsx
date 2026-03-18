@@ -83,7 +83,18 @@ export const ClinicalNoteForm: React.FC = () => {
         .single();
       
       if (data && !error) {
-        reset(data.data);
+        // Fetch signature for this response
+        const { data: sigData } = await supabase
+          .from('signatures')
+          .select('signature_data')
+          .eq('parent_id', editId)
+          .eq('parent_type', 'form_response')
+          .maybeSingle();
+
+        reset({
+          ...data.data,
+          signature: sigData?.signature_data || ''
+        });
       }
     } catch (error) {
       console.error('Error fetching submission:', error);
@@ -369,6 +380,7 @@ export const ClinicalNoteForm: React.FC = () => {
             <SignaturePad 
               label="Staff Signature" 
               onSave={(sig) => setValue('signature', sig, { shouldValidate: true })} 
+              initialValue={watch('signature')}
             />
             {errors.signature && <p className="text-xs text-red-500 mt-1">{errors.signature.message}</p>}
           </div>
