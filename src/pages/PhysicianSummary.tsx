@@ -242,7 +242,7 @@ export const PhysicianSummary: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
@@ -287,7 +287,7 @@ export const PhysicianSummary: React.FC = () => {
 
       <form 
         ref={formRef}
-        className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-x-auto"
       >
         {/* Patient Section */}
         <section className="space-y-4">

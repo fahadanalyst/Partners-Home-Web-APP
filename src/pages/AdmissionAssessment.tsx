@@ -96,18 +96,21 @@ export const AdmissionAssessment: React.FC = () => {
   };
 
   const handlePrint = async () => {
+    console.log('Admission Assessment: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('Admission Assessment: Form data for PDF:', formData);
       const success = await generateFormPDF('Admission Assessment', formData);
       
       if (!success && formRef.current) {
-        // Fallback to old method if no template exists
+        console.log('Admission Assessment: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `Admission_Assessment_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('Admission Assessment: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('Admission Assessment: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -115,7 +118,7 @@ export const AdmissionAssessment: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
@@ -158,8 +161,8 @@ export const AdmissionAssessment: React.FC = () => {
         </div>
       </div>
 
-      <form ref={formRef} className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="grid grid-cols-2 gap-4">
+      <form ref={formRef} className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-zinc-700">Date <span className="text-red-500">*</span></label>
             <input type="date" {...register('date')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 outline-none focus:ring-2 focus:ring-partners-blue-dark" />

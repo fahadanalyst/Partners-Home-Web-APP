@@ -181,13 +181,35 @@ export const GAFCCarePlan: React.FC = () => {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
-          .select('first_name, last_name, dob')
+          .select('*')
           .eq('id', patientId)
           .single();
         
         if (data && !error) {
           setValue('memberInfo.name', `${data.first_name} ${data.last_name}`);
           if (data.dob) setValue('memberInfo.dob', data.dob);
+          if (data.insurance_id) setValue('memberInfo.massHealthId', data.insurance_id);
+          if (data.primary_language) setValue('memberInfo.primaryLanguage', data.primary_language);
+          
+          if (data.emergency_contact_name) setValue('emergencyContact.name', data.emergency_contact_name);
+          if (data.emergency_contact_relationship) setValue('emergencyContact.relationship', data.emergency_contact_relationship);
+          if (data.emergency_contact_phone) setValue('emergencyContact.phone', data.emergency_contact_phone);
+          
+          if (data.pcp_id) setValue('primaryCareProvider.name', data.pcp_id);
+          
+          if (data.religion) setValue('memberPreferences.culturalReligious', data.religion);
+
+          // Auto-populate medical conditions from diagnoses
+          if (data.diagnoses && data.diagnoses.length > 0) {
+            const diagList = data.diagnoses.map((d: any) => `${d.disease} (${d.icd10})`).join(', ');
+            setValue('medicalConditions', diagList);
+          }
+
+          // Auto-populate medication changes if available
+          if (data.medications && data.medications.length > 0) {
+            const medList = data.medications.map((m: any) => `${m.medicine} (${m.dosage})`).join('\n');
+            setValue('monthlyReview.medicationChanges', medList);
+          }
         } else {
           setPatientId(null);
         }
@@ -333,18 +355,21 @@ export const GAFCCarePlan: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
+    console.log('GAFC Care Plan: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('GAFC Care Plan: Form data for PDF:', formData);
       const success = await generateFormPDF(FORM_NAME, formData);
       
       if (!success && formRef.current) {
-        // Fallback to old method if no template exists
+        console.log('GAFC Care Plan: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `GAFC_Care_Plan_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('GAFC Care Plan: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('GAFC Care Plan: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -352,22 +377,22 @@ export const GAFCCarePlan: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-8 space-y-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <Logo showText size={64} />
-          <div className="space-y-1">
-            <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
+          <div className="space-y-1 text-center sm:text-left">
+            <h2 className="text-2xl md:text-3xl font-bold text-partners-blue-dark flex flex-col sm:flex-row items-center gap-3">
               <div className="p-2 bg-partners-blue-light/10 rounded-xl">
                 <ClipboardList className="text-partners-blue-light" size={28} />
               </div>
               GAFC CARE PLAN
             </h2>
-            <p className="text-partners-gray text-lg">Comprehensive MassHealth GAFC Care Plan Template.</p>
+            <p className="text-partners-gray text-base md:text-lg">Comprehensive MassHealth GAFC Care Plan Template.</p>
           </div>
         </div>
         
@@ -387,13 +412,13 @@ export const GAFCCarePlan: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex gap-3 no-print">
+          <div className="flex gap-3 w-full sm:w-auto no-print">
             <Button 
               variant="secondary" 
               type="button" 
               onClick={handlePrint}
               disabled={isGeneratingPDF}
-              className="h-11 px-6 rounded-xl shadow-sm"
+              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
             >
               {isGeneratingPDF ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -406,7 +431,7 @@ export const GAFCCarePlan: React.FC = () => {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={isSubmitting}
-              className="h-11 px-8 rounded-xl shadow-md"
+              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
             >
               <Send className="w-4 h-4 mr-2" />
               {isSubmitting ? 'Submitting...' : 'Submit Care Plan'}
@@ -522,7 +547,7 @@ export const GAFCCarePlan: React.FC = () => {
         </section>
 
         {/* Medical Conditions */}
-        <section className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+        <section className="bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
           <h3 className="text-lg font-bold text-zinc-900 border-b pb-2 uppercase tracking-wider">Medical Conditions / Diagnoses</h3>
           <textarea {...register('medicalConditions')} rows={4} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
         </section>
@@ -627,14 +652,15 @@ export const GAFCCarePlan: React.FC = () => {
         </section>
 
         {/* Interventions Table */}
-        <section className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b pb-2">
+        <section className="bg-white p-4 md:p-8 rounded-2xl border border-zinc-200 shadow-sm space-y-6 overflow-x-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-2 gap-4">
             <h3 className="text-lg font-bold text-zinc-900 uppercase tracking-wider">Interventions, Frequency & Responsible Party</h3>
             <Button type="button" variant="secondary" size="sm" onClick={() => append({ needGoal: '', intervention: '', responsibleParty: '', frequency: '' })}>
               <Plus className="w-4 h-4 mr-1" /> Add Row
             </Button>
           </div>
-          <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-zinc-200">
                 <th className="py-3 px-4 text-xs font-bold text-zinc-500 uppercase">Need / Goal</th>
@@ -660,6 +686,7 @@ export const GAFCCarePlan: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
 
         {/* Risk Assessment */}

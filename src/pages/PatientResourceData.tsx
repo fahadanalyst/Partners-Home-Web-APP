@@ -123,17 +123,21 @@ export const PatientResourceData: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
+    console.log('Patient Resource Data: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('Patient Resource Data: Form data for PDF:', formData);
       const success = await generateFormPDF('Patient Resource Data', formData);
       
       if (!success && formRef.current) {
+        console.log('Patient Resource Data: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `Patient_Resource_Data_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('Patient Resource Data: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('Patient Resource Data: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -196,7 +200,7 @@ export const PatientResourceData: React.FC = () => {
   const onSubmit = (data: ResourceFormValues) => submitForm(data, 'submitted');
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
@@ -241,7 +245,7 @@ export const PatientResourceData: React.FC = () => {
       <form 
         ref={formRef}
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
       >
         {/* Patient Info */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-8">

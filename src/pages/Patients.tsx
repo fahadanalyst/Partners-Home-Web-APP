@@ -21,7 +21,7 @@ import { Button } from '../components/Button';
 import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
 import { Notification, NotificationType } from '../components/Notification';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
@@ -45,6 +45,56 @@ const patientSchema = z.object({
   last_annual_physical: z.string().optional().or(z.literal('')),
   last_semi_annual_report: z.string().optional().or(z.literal('')),
   last_monthly_visit: z.string().optional().or(z.literal('')),
+  preferred_name: z.string().optional(),
+  race: z.string().optional(),
+  religion: z.string().optional(),
+  marital_status: z.string().optional(),
+  primary_language: z.string().optional(),
+  height: z.string().optional(),
+  weight: z.string().optional(),
+  is_responsible_for_self: z.boolean().optional(),
+  mds_date: z.string().optional().or(z.literal('')),
+  hospital_of_choice: z.string().optional(),
+  start_of_service: z.string().optional().or(z.literal('')),
+  occupation: z.string().optional(),
+  mothers_maiden_name: z.string().optional(),
+  primary_payer: z.string().optional(),
+  medicare_id: z.string().optional(),
+  medicaid_id: z.string().optional(),
+  other_insurance: z.string().optional(),
+  other_insurance_id: z.string().optional(),
+  living_will: z.string().optional(),
+  full_code: z.string().optional(),
+  organ_donation: z.string().optional(),
+  autopsy_request: z.string().optional(),
+  hospice: z.string().optional(),
+  dnr: z.string().optional(),
+  dni: z.string().optional(),
+  dnh: z.string().optional(),
+  feeding_restrictions: z.string().optional(),
+  medication_restrictions: z.string().optional(),
+  other_treatment_restrictions: z.string().optional(),
+  emergency_contact_name: z.string().optional(),
+  emergency_contact_phone: z.string().optional(),
+  emergency_contact_relationship: z.string().optional(),
+  emergency_contact_address: z.object({
+    street: z.string().optional(),
+    apt: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip: z.string().optional(),
+  }).optional(),
+  pcp_id: z.string().optional(),
+  other_provider_ids: z.string().optional(),
+  diagnoses: z.array(z.object({
+    disease: z.string().min(1, 'Required'),
+    icd10: z.string().min(1, 'Required'),
+  })).optional(),
+  medications: z.array(z.object({
+    medicine: z.string().min(1, 'Required'),
+    dosage: z.string().min(1, 'Required'),
+    schedule: z.string().min(1, 'Required'),
+  })).optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -70,6 +120,56 @@ interface Patient {
   last_annual_physical: string | null;
   last_semi_annual_report: string | null;
   last_monthly_visit: string | null;
+  preferred_name: string | null;
+  race: string | null;
+  religion: string | null;
+  marital_status: string | null;
+  primary_language: string | null;
+  height: string | null;
+  weight: string | null;
+  is_responsible_for_self: boolean;
+  mds_date: string | null;
+  hospital_of_choice: string | null;
+  start_of_service: string | null;
+  occupation: string | null;
+  mothers_maiden_name: string | null;
+  primary_payer: string | null;
+  medicare_id: string | null;
+  medicaid_id: string | null;
+  other_insurance: string | null;
+  other_insurance_id: string | null;
+  living_will: string | null;
+  full_code: string | null;
+  organ_donation: string | null;
+  autopsy_request: string | null;
+  hospice: string | null;
+  dnr: string | null;
+  dni: string | null;
+  dnh: string | null;
+  feeding_restrictions: string | null;
+  medication_restrictions: string | null;
+  other_treatment_restrictions: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relationship: string | null;
+  emergency_contact_address: {
+    street?: string;
+    apt?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  } | null;
+  pcp_id: string | null;
+  other_provider_ids: string | null;
+  diagnoses: {
+    disease: string;
+    icd10: string;
+  }[] | null;
+  medications: {
+    medicine: string;
+    dosage: string;
+    schedule: string;
+  }[] | null;
   created_at: string;
   last_visit?: string;
 }
@@ -84,15 +184,42 @@ export const Patients: React.FC = () => {
   const [notification, setNotification] = useState<{ type: NotificationType, message: string } | null>(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [medicalProviders, setMedicalProviders] = useState<any[]>([]);
 
-  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
+  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
       mloa_days: 0,
       nmloa_days: 0,
-      status: 'active'
+      status: 'active',
+      emergency_contact_address: { street: '', apt: '', city: '', state: '', zip: '' },
+      diagnoses: [],
+      medications: []
     }
   });
+
+  const { fields: diagnosisFields, append: appendDiagnosis, remove: removeDiagnosis } = useFieldArray({
+    control,
+    name: "diagnoses"
+  });
+
+  const { fields: medicationFields, append: appendMedication, remove: removeMedication } = useFieldArray({
+    control,
+    name: "medications"
+  });
+
+  const dob = watch('dob');
+  const calculateAge = (dobString: string) => {
+    if (!dobString) return '';
+    const birthDate = new Date(dobString);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   const openEditModal = (patient: Patient) => {
     setEditingPatient(patient);
@@ -115,12 +242,63 @@ export const Patients: React.FC = () => {
     setValue('last_annual_physical', patient.last_annual_physical || '');
     setValue('last_semi_annual_report', patient.last_semi_annual_report || '');
     setValue('last_monthly_visit', patient.last_monthly_visit || '');
+    setValue('preferred_name', patient.preferred_name || '');
+    setValue('race', patient.race || '');
+    setValue('religion', patient.religion || '');
+    setValue('marital_status', patient.marital_status || '');
+    setValue('primary_language', patient.primary_language || '');
+    setValue('height', patient.height || '');
+    setValue('weight', patient.weight || '');
+    setValue('is_responsible_for_self', patient.is_responsible_for_self ?? true);
+    setValue('mds_date', patient.mds_date || '');
+    setValue('hospital_of_choice', patient.hospital_of_choice || '');
+    setValue('start_of_service', patient.start_of_service || '');
+    setValue('occupation', patient.occupation || '');
+    setValue('mothers_maiden_name', patient.mothers_maiden_name || '');
+    setValue('primary_payer', patient.primary_payer || '');
+    setValue('medicare_id', patient.medicare_id || '');
+    setValue('medicaid_id', patient.medicaid_id || '');
+    setValue('other_insurance', patient.other_insurance || '');
+    setValue('other_insurance_id', patient.other_insurance_id || '');
+    setValue('living_will', patient.living_will || 'No');
+    setValue('full_code', patient.full_code || 'No');
+    setValue('organ_donation', patient.organ_donation || 'No');
+    setValue('autopsy_request', patient.autopsy_request || 'No');
+    setValue('hospice', patient.hospice || 'No');
+    setValue('dnr', patient.dnr || 'No');
+    setValue('dni', patient.dni || 'No');
+    setValue('dnh', patient.dnh || 'No');
+    setValue('feeding_restrictions', patient.feeding_restrictions || 'No');
+    setValue('medication_restrictions', patient.medication_restrictions || 'No');
+    setValue('other_treatment_restrictions', patient.other_treatment_restrictions || 'No');
+    setValue('emergency_contact_name', patient.emergency_contact_name || '');
+    setValue('emergency_contact_phone', patient.emergency_contact_phone || '');
+    setValue('emergency_contact_relationship', patient.emergency_contact_relationship || '');
+    setValue('emergency_contact_address', patient.emergency_contact_address || { street: '', apt: '', city: '', state: '', zip: '' });
+    setValue('pcp_id', patient.pcp_id || '');
+    setValue('other_provider_ids', patient.other_provider_ids || '');
+    setValue('diagnoses', patient.diagnoses || []);
+    setValue('medications', patient.medications || []);
     setIsModalOpen(true);
   };
 
   useEffect(() => {
     fetchPatients();
+    fetchMedicalProviders();
   }, []);
+
+  const fetchMedicalProviders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('medical_providers')
+        .select('*')
+        .order('last_name', { ascending: true });
+      if (error) throw error;
+      setMedicalProviders(data || []);
+    } catch (error) {
+      console.error('Error fetching medical providers:', error);
+    }
+  };
 
   const fetchPatients = async () => {
     try {
@@ -162,7 +340,14 @@ export const Patients: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.warn('Patients: Form validation errors:', errors);
+    }
+  }, [errors]);
+
   const onSubmit = async (data: PatientFormValues) => {
+    console.log('Patients: Submitting form data:', data);
     try {
       const patientData: any = {
         first_name: data.first_name,
@@ -183,7 +368,44 @@ export const Patients: React.FC = () => {
         nmloa_days: data.nmloa_days,
         last_annual_physical: data.last_annual_physical || null,
         last_semi_annual_report: data.last_semi_annual_report || null,
-        last_monthly_visit: data.last_monthly_visit || null
+        last_monthly_visit: data.last_monthly_visit || null,
+        preferred_name: data.preferred_name || null,
+        race: data.race || null,
+        religion: data.religion || null,
+        marital_status: data.marital_status || null,
+        primary_language: data.primary_language || null,
+        height: data.height || null,
+        weight: data.weight || null,
+        is_responsible_for_self: data.is_responsible_for_self,
+        mds_date: data.mds_date || null,
+        hospital_of_choice: data.hospital_of_choice || null,
+        start_of_service: data.start_of_service || null,
+        occupation: data.occupation || null,
+        mothers_maiden_name: data.mothers_maiden_name || null,
+        primary_payer: data.primary_payer || null,
+        medicare_id: data.medicare_id || null,
+        medicaid_id: data.medicaid_id || null,
+        other_insurance: data.other_insurance || null,
+        other_insurance_id: data.other_insurance_id || null,
+        living_will: data.living_will || null,
+        full_code: data.full_code || null,
+        organ_donation: data.organ_donation || null,
+        autopsy_request: data.autopsy_request || null,
+        hospice: data.hospice || null,
+        dnr: data.dnr || null,
+        dni: data.dni || null,
+        dnh: data.dnh || null,
+        feeding_restrictions: data.feeding_restrictions || null,
+        medication_restrictions: data.medication_restrictions || null,
+        other_treatment_restrictions: data.other_treatment_restrictions || null,
+        emergency_contact_name: data.emergency_contact_name || null,
+        emergency_contact_phone: data.emergency_contact_phone || null,
+        emergency_contact_relationship: data.emergency_contact_relationship || null,
+        emergency_contact_address: data.emergency_contact_address || null,
+        pcp_id: data.pcp_id || null,
+        other_provider_ids: data.other_provider_ids || null,
+        diagnoses: data.diagnoses || [],
+        medications: data.medications || []
       };
 
       if (editingPatient) {
@@ -474,146 +696,202 @@ export const Patients: React.FC = () => {
         title={editingPatient ? "Edit Patient" : "Add New Patient"}
         size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">First Name</label>
-              <input
-                {...register('first_name')}
-                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                placeholder="John"
-              />
-              {errors.first_name && <p className="text-xs text-red-500">{errors.first_name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">Last Name</label>
-              <input
-                {...register('last_name')}
-                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                placeholder="Doe"
-              />
-              {errors.last_name && <p className="text-xs text-red-500">{errors.last_name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">Date of Birth</label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                <input
-                  type="date"
-                  {...register('dob')}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                />
-              </div>
-              {errors.dob && <p className="text-xs text-red-500">{errors.dob.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">Gender</label>
-              <select
-                {...register('gender')}
-                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-              >
-                <option value="">Select Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-              {errors.gender && <p className="text-xs text-red-500">{errors.gender.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">Phone Number</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                <input
-                  {...register('phone')}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="(555) 000-0000"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                <input
-                  type="email"
-                  {...register('email')}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="john.doe@example.com"
-                />
-              </div>
-              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          {/* DEMOGRAPHICS */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Address Information</h3>
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Demographics</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-zinc-700">Street Address (Line 1)</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">First Name</label>
+                <input
+                  {...register('first_name')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="First Name"
+                />
+                {errors.first_name && <p className="text-xs text-red-500">{errors.first_name.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Last Name</label>
+                <input
+                  {...register('last_name')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Last Name"
+                />
+                {errors.last_name && <p className="text-xs text-red-500">{errors.last_name.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Email</label>
+                <input
+                  {...register('email')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Email Address"
+                />
+                {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Preferred Name</label>
+                <input
+                  {...register('preferred_name')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Preferred Name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Race</label>
+                <input
+                  {...register('race')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Race"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Sex</label>
+                <select
+                  {...register('gender')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                >
+                  <option value="">Select Sex</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                {errors.gender && <p className="text-xs text-red-500">{errors.gender.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Religion</label>
+                <input
+                  {...register('religion')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Religion"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Date of Birth</label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                  <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                   <input
-                    {...register('address_line1')}
+                    type="date"
+                    {...register('dob')}
                     className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                    placeholder="123 Main St"
+                  />
+                </div>
+                {errors.dob && <p className="text-xs text-red-500">{errors.dob.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Martial Status</label>
+                <select
+                  {...register('marital_status')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                >
+                  <option value="">Select Status</option>
+                  <option value="Single">Single</option>
+                  <option value="Married">Married</option>
+                  <option value="Divorced">Divorced</option>
+                  <option value="Widowed">Widowed</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Patient Status</label>
+                <select
+                  {...register('status')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Age</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={calculateAge(dob)}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 outline-none"
+                  placeholder="Auto from DOB"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Primary Language</label>
+                <input
+                  {...register('primary_language')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Primary Language"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700">Height</label>
+                  <input
+                    {...register('height')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="e.g. 5ft 10in"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700">Weight</label>
+                  <input
+                    {...register('weight')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="e.g. 160 lbs"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Apt./Suite/Unit (Line 2)</label>
+              <div className="space-y-2 flex items-center gap-2 pt-6">
                 <input
-                  {...register('address_line2')}
-                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="Apt 4B"
+                  type="checkbox"
+                  {...register('is_responsible_for_self')}
+                  className="w-4 h-4 rounded border-zinc-300 text-partners-blue-dark focus:ring-partners-blue-dark"
                 />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">City (Line 3)</label>
-                <input
-                  {...register('city')}
-                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="Boston"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">State (Line 4)</label>
-                <input
-                  {...register('state')}
-                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="MA"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Zip Code (Line 5)</label>
-                <input
-                  {...register('zip_code')}
-                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="02108"
-                />
+                <label className="text-sm font-medium text-zinc-700">Is Responsible for Self</label>
               </div>
             </div>
           </div>
 
+          {/* CENSUS SUMMARY */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Compliance Tracking</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Census Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Medical Leave (MLOA) Days Used</label>
+                <label className="text-sm font-medium text-zinc-700">MDS Date</label>
+                <input
+                  type="date"
+                  {...register('mds_date')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Hospital of Choice</label>
+                <input
+                  {...register('hospital_of_choice')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Hospital Name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Start of Service</label>
+                <input
+                  type="date"
+                  {...register('start_of_service')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">MLOA Days</label>
                 <input
                   type="number"
                   {...register('mloa_days', { valueAsNumber: true })}
                   className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="0"
                 />
-                <p className="text-[10px] text-zinc-400 italic">Limit: 30 days annually</p>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Non-Medical Leave (NMLOA) Days Used</label>
+                <label className="text-sm font-medium text-zinc-700">NMLOA Days</label>
                 <input
                   type="number"
                   {...register('nmloa_days', { valueAsNumber: true })}
                   className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="0"
                 />
-                <p className="text-[10px] text-zinc-400 italic">Limit: 45 days annually</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-700">Last Annual Physical</label>
@@ -624,14 +902,14 @@ export const Patients: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Last Semi-Annual Health Status</label>
+                <label className="text-sm font-medium text-zinc-700">Last Semi-Annual Report</label>
                 <input
                   type="date"
                   {...register('last_semi_annual_report')}
                   className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-700">Last Monthly Visit</label>
                 <input
                   type="date"
@@ -642,42 +920,378 @@ export const Patients: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">Insurance ID</label>
-              <input
-                {...register('insurance_id')}
-                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                placeholder="ABC123456789"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-700">SSN (Last 4)</label>
-              <div className="relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+          {/* PERSONAL INFORMATION */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Personal Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium text-zinc-700">Address (Street)</label>
                 <input
-                  {...register('ssn_encrypted')}
-                  maxLength={4}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                  placeholder="0000"
+                  {...register('address_line1')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Street Address"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Apt</label>
+                <input
+                  {...register('address_line2')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Apt #"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">City</label>
+                <input
+                  {...register('city')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="City"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">State</label>
+                <input
+                  {...register('state')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="State"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Zip</label>
+                <input
+                  {...register('zip_code')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Zip Code"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Telephone</label>
+                <input
+                  {...register('phone')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Telephone"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Occupation</label>
+                <input
+                  {...register('occupation')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Occupation"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Mothers Maiden Name</label>
+                <input
+                  {...register('mothers_maiden_name')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Mothers Maiden Name"
                 />
               </div>
             </div>
-            {editingPatient && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-700">Status</label>
-                <select
-                  {...register('status')}
-                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-            )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+          {/* PAYER INFORMATION */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Payer Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Primary Payer</label>
+                <input
+                  {...register('primary_payer')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Primary Payer Name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">SSN</label>
+                <input
+                  {...register('ssn_encrypted')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="SSN"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Medical Record #</label>
+                <input
+                  {...register('insurance_id')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Medical Record #"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Medicare ID#</label>
+                <input
+                  {...register('medicare_id')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Medicare ID#"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Medicaid ID#</label>
+                <input
+                  {...register('medicaid_id')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Medicaid ID#"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* OTHER INSURANCE INFORMATION */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Other Insurance Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Insurance</label>
+                <input
+                  {...register('other_insurance')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Insurance Name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">ID Number</label>
+                <input
+                  {...register('other_insurance_id')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="ID Number"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ADVANCED DIRECTIVES */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Advanced Directives</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { name: 'living_will', label: 'Living Will' },
+                { name: 'dnr', label: 'DNR' },
+                { name: 'full_code', label: 'Full Code' },
+                { name: 'dni', label: 'DNI' },
+                { name: 'organ_donation', label: 'Organ Donation' },
+                { name: 'dnh', label: 'DNH' },
+                { name: 'autopsy_request', label: 'Autopsy Request' },
+                { name: 'feeding_restrictions', label: 'Feeding Restrictions' },
+                { name: 'hospice', label: 'Hospice' },
+                { name: 'medication_restrictions', label: 'Medication Restrictions' },
+                { name: 'other_treatment_restrictions', label: 'Other Treatment Restrictions' }
+              ].map(field => (
+                <div key={field.name} className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-700">{field.label}</label>
+                  <select
+                    {...register(field.name as any)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-partners-blue-dark outline-none"
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                    <option value="Not Applicable">Not Applicable</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* PRIMARY CARE PHYSICIAN */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Primary Care Physician</h3>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700">Select PCP</label>
+              <select
+                {...register('pcp_id')}
+                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+              >
+                <option value="">Select a Provider</option>
+                {medicalProviders.map(provider => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.last_name}, {provider.first_name} - {provider.facility_name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-zinc-400 italic">Define this in medical-providers and attach to patient</p>
+            </div>
+          </div>
+
+          {/* OTHER PROVIDER(S) */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Other Provider(s)</h3>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700">Enter Other Providers (Optional)</label>
+              <textarea
+                {...register('other_provider_ids')}
+                className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all min-h-[100px]"
+                placeholder="Enter other provider names or IDs..."
+              />
+              <p className="text-[10px] text-zinc-400 italic">You can enter multiple providers here.</p>
+            </div>
+          </div>
+
+          {/* CURRENT DIAGNOSIS */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b-2 border-partners-blue-dark/20 pb-2">
+              <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider">Current Diagnosis</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => appendDiagnosis({ disease: '', icd10: '' })}>
+                <Plus size={16} className="mr-1" /> Add Diagnosis
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {diagnosisFields.map((field, index) => (
+                <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-zinc-50 p-4 rounded-2xl relative">
+                  <button
+                    type="button"
+                    onClick={() => removeDiagnosis(index)}
+                    className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-700 uppercase">Disease</label>
+                    <input
+                      {...register(`diagnoses.${index}.disease` as const)}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none bg-white"
+                      placeholder="Disease Name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-700 uppercase">ICD-10 Code</label>
+                    <input
+                      {...register(`diagnoses.${index}.icd10` as const)}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none bg-white"
+                      placeholder="ICD-10 Code"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* EMERGENCY CONTACT */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider border-b-2 border-partners-blue-dark/20 pb-2">Emergency Contact</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Name</label>
+                <input
+                  {...register('emergency_contact_name')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Contact Name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Phone</label>
+                <input
+                  {...register('emergency_contact_phone')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Relationship</label>
+                <input
+                  {...register('emergency_contact_relationship')}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                  placeholder="Relationship"
+                />
+              </div>
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-zinc-700">Address (Street)</label>
+                  <input
+                    {...register('emergency_contact_address.street')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="Street"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700">Apt</label>
+                  <input
+                    {...register('emergency_contact_address.apt')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="Apt"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700">City</label>
+                  <input
+                    {...register('emergency_contact_address.city')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="City"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700">State</label>
+                  <input
+                    {...register('emergency_contact_address.state')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="State"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-700">Zip</label>
+                  <input
+                    {...register('emergency_contact_address.zip')}
+                    className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
+                    placeholder="Zip"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* MEDICATIONS */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b-2 border-partners-blue-dark/20 pb-2">
+              <h3 className="text-sm font-bold text-partners-blue-dark uppercase tracking-wider">Medications</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={() => appendMedication({ medicine: '', dosage: '', schedule: 'once a day' })}>
+                <Plus size={16} className="mr-1" /> Add Medication
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {medicationFields.map((field, index) => (
+                <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-zinc-50 p-4 rounded-2xl relative">
+                  <button
+                    type="button"
+                    onClick={() => removeMedication(index)}
+                    className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-700 uppercase">Medicine</label>
+                    <input
+                      {...register(`medications.${index}.medicine` as const)}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none bg-white"
+                      placeholder="Medicine Name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-700 uppercase">Dosage</label>
+                    <input
+                      {...register(`medications.${index}.dosage` as const)}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none bg-white"
+                      placeholder="Dosage"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-700 uppercase">Schedule</label>
+                    <select
+                      {...register(`medications.${index}.schedule` as const)}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none bg-white"
+                    >
+                      <option value="once a day">Once a day</option>
+                      <option value="twice a day">Twice a day</option>
+                      <option value="three times a day">Three times a day</option>
+                      <option value="four times a day">Four times a day</option>
+                      <option value="as needed">As needed</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-6 border-t border-zinc-100">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)} type="button">
               Cancel
             </Button>

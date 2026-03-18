@@ -203,18 +203,21 @@ export const PhysicianOrders: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
+    console.log('Physician Orders: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('Physician Orders: Form data for PDF:', formData);
       const success = await generateFormPDF(FORM_NAME, formData);
       
       if (!success && formRef.current) {
-        // Fallback to old method if no template exists
+        console.log('Physician Orders: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `Physician_Orders_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('Physician Orders: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('Physician Orders: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -222,7 +225,7 @@ export const PhysicianOrders: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
@@ -261,7 +264,10 @@ export const PhysicianOrders: React.FC = () => {
         </div>
       </div>
 
-      <form ref={formRef} className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm">
+      <form 
+        ref={formRef} 
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
+      >
         {/* Patient Info */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">

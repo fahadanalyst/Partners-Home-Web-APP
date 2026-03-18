@@ -40,7 +40,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
 
         {/* Vital Signs */}
         <section className="space-y-2">
-          <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Vital Signs</h3>
+          <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Vital Signs</h3>
           <div className="grid grid-cols-4 gap-4">
             <div className="p-2 border border-zinc-100 rounded bg-white">
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Temp</p>
@@ -77,7 +77,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
         <div className="grid grid-cols-2 gap-6">
           {/* Neurological */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Neurological</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Neurological</h3>
             <div className="space-y-2 text-sm">
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase">Orientation</p>
@@ -98,7 +98,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
 
           {/* Respiratory */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Respiratory</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Respiratory</h3>
             <div className="space-y-2 text-sm">
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase">Breath Sounds</p>
@@ -119,7 +119,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
 
           {/* Cardiovascular */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Cardiovascular</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Cardiovascular</h3>
             <div className="space-y-2 text-sm">
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase">Rhythm</p>
@@ -140,7 +140,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
 
           {/* GI / GU */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">GI / GU</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>GI / GU</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase">Bowel Sounds</p>
@@ -165,7 +165,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
         {/* Skin & Psychosocial */}
         <div className="grid grid-cols-2 gap-6">
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Integumentary (Skin)</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Integumentary (Skin)</h3>
             <div className="space-y-2 text-sm">
               <div>
                 <p className="text-[10px] font-bold text-zinc-400 uppercase">Condition</p>
@@ -178,7 +178,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
             </div>
           </section>
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Psychosocial</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Psychosocial</h3>
             <div className="p-3 bg-zinc-50 rounded border border-zinc-100 min-h-[60px]">
               <p className="text-sm text-zinc-800 italic">{psychosocial || 'No psychosocial notes provided.'}</p>
             </div>
@@ -188,13 +188,13 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
         {/* Diagnosis & Plan */}
         <section className="space-y-4">
           <div className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Nursing Diagnosis</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Nursing Diagnosis</h3>
             <div className="p-4 bg-zinc-50 rounded border border-zinc-100 min-h-[80px]">
               <p className="text-sm text-zinc-800">{nursingDiagnosis || 'N/A'}</p>
             </div>
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Plan of Care / Interventions</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Plan of Care / Interventions</h3>
             <div className="p-4 bg-zinc-50 rounded border border-zinc-100 min-h-[100px]">
               <p className="text-sm text-zinc-800 whitespace-pre-wrap">{plan || 'N/A'}</p>
             </div>
@@ -206,7 +206,7 @@ export const NursingAssessmentTemplate: React.FC<NursingAssessmentTemplateProps>
           <div className="flex justify-end">
             <div className="text-center">
               {signature ? (
-                <img src={signature} alt="Nurse Signature" className="max-h-16 mx-auto mb-2" />
+                <img src={signature} alt="Nurse Signature" className="max-h-16 mx-auto mb-2" referrerPolicy="no-referrer" />
               ) : (
                 <div className="h-16 w-48 border-b border-zinc-400 mb-2 mx-auto flex items-center justify-center text-zinc-300 text-xs italic">
                   No signature provided

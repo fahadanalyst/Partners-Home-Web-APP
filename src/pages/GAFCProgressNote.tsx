@@ -178,13 +178,30 @@ export const GAFCProgressNote: React.FC = () => {
       const fetchPatient = async () => {
         const { data, error } = await supabase
           .from('patients')
-          .select('first_name, last_name')
+          .select('*')
           .eq('id', patientId)
           .single();
         
         if (data && !error) {
           setValue('participantName', `${data.first_name} ${data.last_name}`);
-          setValue('dob', ''); // You might want to fetch DOB too if available
+          if (data.dob) setValue('dob', data.dob);
+          if (data.pcp_id) setValue('gafcProvider', data.pcp_id);
+          
+          const fullAddress = [
+            data.address_line1,
+            data.address_line2,
+            data.city,
+            data.state,
+            data.zip_code
+          ].filter(Boolean).join(', ');
+          
+          if (fullAddress) setValue('location', fullAddress);
+
+          // Auto-populate medications if available
+          if (data.medications && data.medications.length > 0) {
+            const medList = data.medications.map((m: any) => `${m.medicine} (${m.dosage}) - ${m.schedule}`).join('\n');
+            setValue('medicationReview.issuesNoted', `Current Medications:\n${medList}`);
+          }
         } else {
           // If patient doesn't exist, clear patientId
           setPatientId(null);
@@ -333,18 +350,21 @@ export const GAFCProgressNote: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
+    console.log('GAFC Progress Note: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('GAFC Progress Note: Form data for PDF:', formData);
       const success = await generateFormPDF(FORM_NAME, formData);
       
       if (!success && formRef.current) {
-        // Fallback to old method if no template exists
+        console.log('GAFC Progress Note: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `GAFC_Progress_Note_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('GAFC Progress Note: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('GAFC Progress Note: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -352,24 +372,24 @@ export const GAFCProgressNote: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
       <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <div className="hidden sm:block">
             <Logo size={64} />
           </div>
-          <div className="space-y-1">
-            <h2 className="text-3xl font-bold text-partners-blue-dark flex items-center gap-3">
+          <div className="space-y-1 text-center sm:text-left">
+            <h2 className="text-2xl md:text-3xl font-bold text-partners-blue-dark flex flex-col sm:flex-row items-center gap-3">
               <div className="p-2 bg-partners-green/10 rounded-xl sm:hidden">
                 <FileText className="text-partners-green" size={28} />
               </div>
               GAFC Progress Note Form
             </h2>
-            <p className="text-partners-gray text-lg">Complete the monthly clinical progress note.</p>
+            <p className="text-partners-gray text-base md:text-lg">Complete the monthly clinical progress note.</p>
           </div>
         </div>
         
@@ -389,13 +409,13 @@ export const GAFCProgressNote: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex gap-3 no-print">
+          <div className="flex gap-3 w-full sm:w-auto no-print">
             <Button 
               variant="secondary" 
               type="button" 
               onClick={handlePrint}
               disabled={isGeneratingPDF}
-              className="h-11 px-6 rounded-xl shadow-sm"
+              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
             >
               {isGeneratingPDF ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -408,7 +428,7 @@ export const GAFCProgressNote: React.FC = () => {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={isSubmitting}
-              className="h-11 px-8 rounded-xl shadow-md"
+              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
             >
               <Send className="w-4 h-4 mr-2" />
               {isSubmitting ? 'Submitting...' : 'Submit Note'}
@@ -420,7 +440,7 @@ export const GAFCProgressNote: React.FC = () => {
       <form 
         ref={formRef}
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
       >
         {Object.keys(errors).length > 0 && (
           <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
@@ -511,7 +531,7 @@ export const GAFCProgressNote: React.FC = () => {
               <input {...register('objective.generalAppearance')} className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none" />
             </div>
             
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-500 uppercase">BP</label>
                 <input {...register('objective.vitals.bp')} className="w-full px-3 py-2 rounded-lg border border-zinc-200" />
@@ -618,7 +638,8 @@ export const GAFCProgressNote: React.FC = () => {
         {/* ADLs / IADLs Review */}
         <section className="space-y-4 overflow-x-auto">
           <h3 className="text-lg font-bold text-zinc-900 border-b pb-2">ADLs / IADLs Review</h3>
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-200">
                 <th className="py-3 px-4 text-sm font-bold text-zinc-900">Task</th>
@@ -649,6 +670,7 @@ export const GAFCProgressNote: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
 
         {/* Assessment & Interventions */}

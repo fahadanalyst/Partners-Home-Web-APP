@@ -27,6 +27,16 @@ export const generatePDFFromTemplate = async (
     // 3. Wait for rendering and images to load
     await new Promise(resolve => setTimeout(resolve, 2500));
 
+    // Ensure all images are loaded
+    const images = Array.from(container.getElementsByTagName('img'));
+    await Promise.all(images.map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    }));
+
     // 3.5 Fix modern color functions (oklch, oklab) that html2canvas cannot parse
     // Add a global style to the main document temporarily to help with the capture
     const styleFix = document.createElement('style');
@@ -168,82 +178,118 @@ export const generatePDFFromTemplate = async (
         logging: false,
         windowWidth: 1200,
         onclone: (clonedDoc) => {
-          // 1. Add a global style override to the cloned document to force hex colors
+          // 1. Remove all external stylesheets to prevent oklab/oklch parsing errors
+          const links = Array.from(clonedDoc.getElementsByTagName('link'));
+          links.forEach(link => {
+            if (link.rel === 'stylesheet') {
+              link.remove();
+            }
+          });
+
+          // 2. Remove ANY style tag that contains oklch or oklab
+          // This is more effective than trying to replace them
+          const styleTags = Array.from(clonedDoc.getElementsByTagName('style'));
+          styleTags.forEach(tag => {
+            const css = tag.innerHTML;
+            if (css.includes('oklch') || css.includes('oklab')) {
+              tag.remove();
+            }
+          });
+
+          // 3. Add our own safe global style override
           const style = clonedDoc.createElement('style');
           style.innerHTML = `
             * {
               -webkit-print-color-adjust: exact !important;
               color-adjust: exact !important;
               color-scheme: light !important;
+              font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif !important;
+              box-sizing: border-box !important;
+            }
+            body {
+              background-color: #ffffff !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .pdf-template-container {
+              width: 210mm !important;
+              padding: 10mm !important;
+              background-color: #ffffff !important;
+              color: #18181b !important;
+              display: block !important;
+              visibility: visible !important;
+              position: relative !important;
+              left: 0 !important;
+              top: 0 !important;
             }
             .bg-partners-blue-dark { background-color: #005696 !important; }
             .text-partners-blue-dark { color: #005696 !important; }
             .bg-partners-green { background-color: #00A651 !important; }
             .text-partners-green { color: #00A651 !important; }
             .border-partners-blue-dark { border-color: #005696 !important; }
-            .border-partners-blue-dark\\/20 { border-color: rgba(0, 86, 150, 0.2) !important; }
             .bg-zinc-50 { background-color: #fafafa !important; }
             .bg-zinc-100 { background-color: #f4f4f5 !important; }
             .bg-zinc-200 { background-color: #e4e4e7 !important; }
             .border-zinc-100 { border-color: #f4f4f5 !important; }
             .border-zinc-200 { border-color: #e4e4e7 !important; }
-            .border-zinc-300 { border-color: #d4d4d8 !important; }
             .text-zinc-400 { color: #a1a1aa !important; }
             .text-zinc-500 { color: #71717a !important; }
             .text-zinc-600 { color: #52525b !important; }
             .text-zinc-700 { color: #3f3f46 !important; }
             .text-zinc-800 { color: #27272a !important; }
             .text-zinc-900 { color: #18181b !important; }
+            
+            /* Table layout fixes for MAR/TAR */
+            table {
+              table-layout: fixed !important;
+              width: 100% !important;
+              border-collapse: collapse !important;
+              border-spacing: 0 !important;
+              margin-bottom: 1rem !important;
+            }
+            th, td {
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
+              word-break: break-word !important;
+              border: 1px solid #e4e4e7 !important;
+              padding: 4px !important;
+            }
+            
+            /* Grid and Flex fixes */
+            .grid { display: block !important; } /* Fallback to block for better compatibility */
+            .flex { display: flex !important; }
+            .grid-cols-2 > *, .grid-cols-3 > *, .grid-cols-4 > * {
+              display: inline-block !important;
+              vertical-align: top !important;
+              margin-bottom: 1rem !important;
+            }
+            .grid-cols-2 > * { width: 48% !important; margin-right: 2% !important; }
+            .grid-cols-3 > * { width: 31% !important; margin-right: 2% !important; }
+            .grid-cols-4 > * { width: 23% !important; margin-right: 2% !important; }
+            
+            /* Ensure images render */
+            img {
+              max-width: 100% !important;
+              height: auto !important;
+              display: block !important;
+            }
           `;
           clonedDoc.head.appendChild(style);
 
-          // 2. Aggressively remove any oklab/oklch from all style tags in the cloned document
-          const styleTags = clonedDoc.getElementsByTagName('style');
-          for (let s = 0; s < styleTags.length; s++) {
-            const tag = styleTags[s];
-            if (tag.innerHTML.includes('oklch') || tag.innerHTML.includes('oklab')) {
-              // Replace oklch/oklab with a safe color or just remove the rule
-              // This is a bit brute force but effective for html2canvas
-              tag.innerHTML = tag.innerHTML.replace(/oklch\([^)]+\)/g, '#000000');
-              tag.innerHTML = tag.innerHTML.replace(/oklab\([^)]+\)/g, '#000000');
-            }
-          }
-
-          // 3. Last ditch effort to remove oklab/oklch in the cloned document elements
-          const clonedElements = clonedDoc.getElementsByTagName('*');
-          for (let k = 0; k < clonedElements.length; k++) {
-            const cel = clonedElements[k] as HTMLElement;
-            const cstyle = clonedDoc.defaultView?.getComputedStyle(cel);
-            
-            if (cstyle) {
-              const props = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'];
+          // 4. Final pass on elements to remove oklab/oklch from inline styles
+          const clonedElements = Array.from(clonedDoc.getElementsByTagName('*'));
+          clonedElements.forEach(el => {
+            const cel = el as HTMLElement;
+            if (cel.style) {
+              const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'fill', 'stroke'];
               props.forEach(prop => {
-                const val = (cstyle as any)[prop];
-                if (val && (val.includes('oklab') || val.includes('oklch'))) {
-                  if (cel.classList.contains('bg-partners-blue-dark')) cel.style.backgroundColor = '#005696';
-                  else if (cel.classList.contains('text-partners-blue-dark')) cel.style.color = '#005696';
-                  else if (cel.classList.contains('bg-partners-green')) cel.style.backgroundColor = '#00A651';
-                  else if (cel.classList.contains('text-partners-green')) cel.style.color = '#00A651';
-                  else if (cel.classList.contains('bg-zinc-50')) cel.style.backgroundColor = '#fafafa';
-                  else if (cel.classList.contains('bg-zinc-100')) cel.style.backgroundColor = '#f4f4f5';
-                  else if (cel.classList.contains('bg-zinc-200')) cel.style.backgroundColor = '#e4e4e7';
-                  else if (cel.classList.contains('text-zinc-400')) cel.style.color = '#a1a1aa';
-                  else if (cel.classList.contains('text-zinc-500')) cel.style.color = '#71717a';
-                  else if (cel.classList.contains('text-zinc-600')) cel.style.color = '#52525b';
-                  else if (cel.classList.contains('text-zinc-700')) cel.style.color = '#3f3f46';
-                  else if (cel.classList.contains('text-zinc-800')) cel.style.color = '#27272a';
-                  else if (cel.classList.contains('text-zinc-900')) cel.style.color = '#18181b';
-                  else {
-                    if (prop === 'backgroundColor') cel.style.backgroundColor = '#ffffff';
-                    else if (prop === 'color') cel.style.color = '#000000';
-                    else if (prop === 'borderColor') cel.style.borderColor = '#dddddd';
-                    else if (prop === 'fill') cel.style.fill = '#000000';
-                    else if (prop === 'stroke') cel.style.stroke = '#000000';
-                  }
+                const val = (cel.style as any)[prop];
+                if (val && (val.includes('oklch') || val.includes('oklab'))) {
+                  (cel.style as any)[prop] = ''; // Clear it
                 }
               });
             }
-          }
+          });
         }
       });
 

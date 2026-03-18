@@ -33,7 +33,8 @@ const visitSchema = z.object({
   end_time: z.string().min(1, 'Required'),
   location: z.string().min(1, 'Required'),
   notes: z.string().optional(),
-  status: z.enum(['Open', 'Assigned', 'Canceled', 'Verified']),
+  status: z.string().min(1, 'Required'),
+  cancellation_reason: z.string().optional(),
 });
 
 type VisitFormValues = z.infer<typeof visitSchema>;
@@ -45,8 +46,9 @@ interface Visit {
   scheduled_at: string;
   start_time: string | null;
   end_time: string | null;
-  status: 'Open' | 'Assigned' | 'Canceled' | 'Verified';
+  status: string;
   location: string;
+  cancellation_reason?: string;
   patient: {
     first_name: string;
     last_name: string;
@@ -73,6 +75,10 @@ export const Schedule: React.FC = () => {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelStatus, setCancelStatus] = useState<string>('');
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -99,6 +105,15 @@ export const Schedule: React.FC = () => {
   useEffect(() => {
     fetchFormData();
   }, []);
+
+  const getStatusColor = (status: string) => {
+    const s = status.toLowerCase();
+    if (s.includes('cancelled') || s.includes('canceled')) return 'bg-red-100 text-red-700 border-red-200';
+    if (s === 'approved') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (s === 'scheduled') return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (s === 'verified' || s === 'reviewed') return 'bg-purple-100 text-purple-700 border-purple-200';
+    return 'bg-zinc-100 text-zinc-600 border-zinc-200';
+  };
 
   const fetchFormData = async () => {
     try {
@@ -142,16 +157,25 @@ export const Schedule: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.warn('Schedule: Form validation errors:', errors);
+    }
+  }, [errors]);
+
   const onSubmit = async (data: VisitFormValues) => {
     try {
-      const { error } = await supabase
-        .from('visits')
-        .insert([{
+      const response = await fetch('/api/visits/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           ...data,
           status: data.status || 'Open'
-        }]);
+        })
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to schedule visit');
       
       setIsModalOpen(false);
       reset();
@@ -165,7 +189,9 @@ export const Schedule: React.FC = () => {
     }
   };
 
-  const updateVisitStatus = async (visitId: string, newStatus: 'Open' | 'Assigned' | 'Canceled' | 'Verified') => {
+  const updateVisitStatus = async (visitId: string, newStatus: string) => {
+    console.log(`Schedule: Updating visit ${visitId} status to ${newStatus}`);
+    
     try {
       if (newStatus === 'Verified') {
         // Check if there are any notes for this visit in either clinical_notes or form_responses
@@ -185,15 +211,17 @@ export const Schedule: React.FC = () => {
         }
       }
 
-      const { error } = await supabase
-        .from('visits')
-        .update({ status: newStatus })
-        .eq('id', visitId);
+      const response = await fetch('/api/visits/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: visitId, status: newStatus })
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to update status');
       
       if (selectedVisit?.id === visitId) {
-        setSelectedVisit(prev => prev ? { ...prev, status: newStatus } : null);
+        setSelectedVisit(prev => prev ? { ...prev, status: newStatus as any } : null);
       }
       
       fetchVisits();
@@ -201,6 +229,35 @@ export const Schedule: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating status:', error);
       setNotification({ type: 'error', message: 'Error updating status: ' + error.message });
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    console.log(`Schedule: Confirming cancellation for visit ${selectedVisitId} with reason: ${cancelReason}`);
+    if (!selectedVisitId) return;
+
+    try {
+      // Update visit status and reason using backend API
+      const response = await fetch('/api/visits/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: selectedVisitId,
+          status: cancelStatus,
+          cancellation_reason: cancelReason 
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to cancel visit');
+
+      setIsCancelModalOpen(false);
+      setCancelReason('');
+      fetchVisits();
+      setNotification({ type: 'success', message: 'Visit cancelled successfully' });
+    } catch (error: any) {
+      console.error('Error canceling visit:', error);
+      setNotification({ type: 'error', message: 'Error canceling visit: ' + error.message });
     }
   };
 
@@ -243,7 +300,7 @@ export const Schedule: React.FC = () => {
             
             {isFilterOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-zinc-100 z-10 p-2">
-                {['all', 'Open', 'Assigned', 'Canceled', 'Verified'].map((status) => (
+                {['all', 'Scheduled', 'Approved', 'Cancelled', 'Client Cancelled – Health (MLOA)', 'Client Cancelled – Non-Medical (NMLOA)', 'Staff Cancelled', 'Office Cancelled', 'Verified'].map((status) => (
                   <button
                     key={status}
                     onClick={() => {
@@ -393,11 +450,7 @@ export const Schedule: React.FC = () => {
                   </div>
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-4">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      visit.status === 'Verified' ? 'bg-emerald-100 text-emerald-700' : 
-                      visit.status === 'Assigned' ? 'bg-amber-100 text-amber-700' : 
-                      visit.status === 'Canceled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(visit.status)}`}>
                       {visit.status}
                     </span>
                     <Button 
@@ -418,6 +471,50 @@ export const Schedule: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Cancellation Modal */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl">
+            <div className="px-8 py-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900">Cancel Visit</h2>
+                <p className="text-sm text-zinc-500">Please provide a reason for cancellation</p>
+              </div>
+              <button onClick={() => setIsCancelModalOpen(false)} className="p-2 hover:bg-zinc-100 rounded-full transition-colors">
+                <X className="w-5 h-5 text-zinc-500" />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-700">Reason for Cancellation</label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-rose-500 outline-none transition-all min-h-[100px]"
+                  placeholder="Enter detailed reason for cancellation..."
+                />
+              </div>
+            </div>
+
+            <div className="px-8 py-6 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50/50">
+              <button
+                onClick={() => setIsCancelModalOpen(false)}
+                className="px-6 py-2 rounded-xl border border-zinc-200 text-zinc-600 font-medium hover:bg-zinc-100 transition-all"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                className="px-6 py-2 rounded-xl bg-rose-600 text-white font-medium hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all"
+              >
+                Confirm Cancellation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Visit Details Modal */}
       <Modal
@@ -474,11 +571,7 @@ export const Schedule: React.FC = () => {
               <div className="space-y-1">
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Current Status</p>
                 <div className="flex items-center gap-2">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    selectedVisit.status === 'Verified' ? 'bg-emerald-100 text-emerald-700' : 
-                    selectedVisit.status === 'Assigned' ? 'bg-amber-100 text-amber-700' : 
-                    selectedVisit.status === 'Canceled' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(selectedVisit.status)}`}>
                     {selectedVisit.status}
                   </span>
                 </div>
@@ -508,12 +601,15 @@ export const Schedule: React.FC = () => {
             <div className="space-y-2 pt-4 border-t border-zinc-100">
               <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Update Status</p>
               <div className="flex flex-wrap gap-2">
-                {(['Open', 'Assigned', 'Canceled', 'Verified'] as const).map((status) => (
+                {['Scheduled', 'Approved', 'Cancelled', 'Client Cancelled – Health (MLOA)', 'Client Cancelled – Non-Medical (NMLOA)', 'Staff Cancelled', 'Office Cancelled', 'Verified'].map((status) => (
                   <Button
                     key={status}
                     variant={selectedVisit.status === status ? 'primary' : 'secondary'}
                     size="sm"
-                    className="capitalize"
+                    className={clsx(
+                      "text-[10px] font-bold uppercase tracking-wider",
+                      selectedVisit.status === status && "ring-2 ring-offset-2 ring-partners-blue-dark"
+                    )}
                     onClick={() => updateVisitStatus(selectedVisit.id, status)}
                   >
                     {status}
@@ -658,9 +754,13 @@ export const Schedule: React.FC = () => {
               {...register('status')}
               className="w-full px-4 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-partners-blue-dark outline-none transition-all"
             >
-              <option value="Open">Open</option>
-              <option value="Assigned">Assigned</option>
-              <option value="Canceled">Canceled</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Approved">Approved</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Client Cancelled – Health (MLOA)">Client Cancelled – Health (MLOA)</option>
+              <option value="Client Cancelled – Non-Medical (NMLOA)">Client Cancelled – Non-Medical (NMLOA)</option>
+              <option value="Staff Cancelled">Staff Cancelled</option>
+              <option value="Office Cancelled">Office Cancelled</option>
               <option value="Verified">Verified</option>
             </select>
           </div>

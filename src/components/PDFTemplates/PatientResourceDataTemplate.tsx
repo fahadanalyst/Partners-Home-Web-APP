@@ -36,7 +36,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
       <div className="space-y-6">
         {/* Patient Info */}
         <section className="space-y-3">
-          <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Patient Information</h3>
+          <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Patient Information</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div className="col-span-2">
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Patient Name</p>
@@ -68,14 +68,14 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
         {/* Special Instructions */}
         {specialInstructions && (
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Directions / Special Instructions</h3>
+            <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Directions / Special Instructions</h3>
             <p className="text-xs text-zinc-700 italic">{specialInstructions}</p>
           </section>
         )}
 
         {/* Demographics */}
         <section className="space-y-3">
-          <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Demographic Information</h3>
+          <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Demographic Information</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Date of Birth</p>
@@ -96,7 +96,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
             <div className="col-span-2">
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Race / Ethnicity</p>
               <p className="font-medium">
-                {demographics.raceEthnicity?.join(', ')}
+                {Array.isArray(demographics.raceEthnicity) ? demographics.raceEthnicity.join(', ') : (demographics.raceEthnicity || 'N/A')}
                 {demographics.raceOther ? ` (${demographics.raceOther})` : ''}
               </p>
             </div>
@@ -105,7 +105,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
 
         {/* Emergency Contact */}
         <section className="space-y-3">
-          <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Emergency Contact</h3>
+          <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Emergency Contact</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Name</p>
@@ -132,18 +132,18 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
 
         {/* Resources Table */}
         <section className="space-y-2">
-          <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Health and Community Resources</h3>
+          <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Health and Community Resources</h3>
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-200">
+              <tr className="border-b" style={{ backgroundColor: 'rgba(0, 86, 150, 0.05)', borderBottomColor: 'rgba(0, 86, 150, 0.1)' }}>
                 <th className="py-2 px-3 text-[10px] font-bold text-zinc-500 uppercase">Resource</th>
                 <th className="py-2 px-3 text-[10px] font-bold text-zinc-500 uppercase">Name / Agency / Telephone</th>
               </tr>
             </thead>
             <tbody>
               {RESOURCE_FIELDS.map(field => (
-                <tr key={field} className="border-b border-zinc-100">
-                  <td className="py-2 px-3 text-xs font-bold text-zinc-700 bg-zinc-50/30">{field}</td>
+                <tr key={field} className="border-b" style={{ borderBottomColor: 'rgba(0, 86, 150, 0.05)' }}>
+                  <td className="py-2 px-3 text-xs font-bold text-zinc-700" style={{ backgroundColor: 'rgba(0, 86, 150, 0.02)' }}>{field}</td>
                   <td className="py-2 px-3 text-xs text-zinc-600">{resources[field] || '--'}</td>
                 </tr>
               ))}
@@ -153,7 +153,7 @@ export const PatientResourceDataTemplate: React.FC<PatientResourceDataTemplatePr
 
         {/* Insurance */}
         <section className="space-y-3">
-          <h3 className="text-sm font-bold text-partners-blue-dark border-b border-partners-blue-dark/20 pb-1 uppercase tracking-tight">Insurance Information</h3>
+          <h3 className="text-sm font-bold uppercase tracking-tight border-b pb-1" style={{ color: '#005696', borderBottomColor: 'rgba(0, 86, 150, 0.2)' }}>Insurance Information</h3>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase">Medicare Number</p>

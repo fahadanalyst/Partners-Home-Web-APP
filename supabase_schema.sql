@@ -17,7 +17,21 @@ CREATE TABLE profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Patients
+-- 3. Medical Providers
+CREATE TABLE medical_providers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  facility_name TEXT NOT NULL,
+  address TEXT,
+  phone TEXT,
+  fax TEXT,
+  email TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Patients
 CREATE TABLE patients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   first_name TEXT NOT NULL,
@@ -39,11 +53,48 @@ CREATE TABLE patients (
   last_annual_physical DATE,
   last_semi_annual_report DATE,
   last_monthly_visit DATE,
+  preferred_name TEXT,
+  race TEXT,
+  religion TEXT,
+  marital_status TEXT,
+  primary_language TEXT,
+  height TEXT,
+  weight TEXT,
+  is_responsible_for_self BOOLEAN DEFAULT true,
+  mds_date DATE,
+  hospital_of_choice TEXT,
+  start_of_service DATE,
+  occupation TEXT,
+  mothers_maiden_name TEXT,
+  primary_payer TEXT,
+  medicare_id TEXT,
+  medicaid_id TEXT,
+  other_insurance TEXT,
+  other_insurance_id TEXT,
+  living_will TEXT,
+  full_code TEXT,
+  organ_donation TEXT,
+  autopsy_request TEXT,
+  hospice TEXT,
+  dnr TEXT,
+  dni TEXT,
+  dnh TEXT,
+  feeding_restrictions TEXT,
+  medication_restrictions TEXT,
+  other_treatment_restrictions TEXT,
+  emergency_contact_name TEXT,
+  emergency_contact_phone TEXT,
+  emergency_contact_relationship TEXT,
+  emergency_contact_address JSONB, -- {street, apt, city, state, zip}
+  pcp_id UUID REFERENCES medical_providers(id),
+  other_provider_ids UUID[],
+  diagnoses JSONB DEFAULT '[]'::jsonb, -- [{disease, icd10}]
+  medications JSONB DEFAULT '[]'::jsonb, -- [{medicine, dosage, schedule}]
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Schedules / Visits
+-- 5. Schedules / Visits
 CREATE TYPE visit_status AS ENUM ('scheduled', 'in-progress', 'completed', 'reviewed', 'approved', 'archived');
 
 CREATE TABLE visits (
@@ -51,9 +102,25 @@ CREATE TABLE visits (
   patient_id UUID REFERENCES patients(id) ON DELETE CASCADE NOT NULL,
   staff_id UUID REFERENCES profiles(id) NOT NULL,
   scheduled_at TIMESTAMPTZ NOT NULL,
-  status visit_status DEFAULT 'scheduled',
+  status TEXT DEFAULT 'Scheduled',
   notes TEXT,
+  cancellation_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Referrals
+CREATE TABLE referrals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  referrer_name TEXT NOT NULL,
+  patient_id UUID REFERENCES patients(id) ON DELETE SET NULL,
+  phone TEXT,
+  email TEXT,
+  fax TEXT,
+  relationship TEXT,
+  comment TEXT,
+  status TEXT DEFAULT 'Pending',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 5. Form Definitions

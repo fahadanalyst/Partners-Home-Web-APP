@@ -23,6 +23,7 @@ import { Schedule } from './pages/Schedule';
 import { MedicalProviders } from './pages/MedicalProviders';
 import { ClinicalNotes } from './pages/ClinicalNotes';
 import { Compliance } from './pages/Compliance';
+import { Referrals } from './pages/Referrals';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Shield, Lock, Mail, AlertCircle, Menu, Eye, EyeOff } from 'lucide-react';
 import { Button } from './components/Button';
@@ -448,6 +449,14 @@ export default function App() {
             element={
               <RoleProtectedRoute allowedRoles={['admin', 'reviewer']}>
                 <Compliance />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="referrals" 
+            element={
+              <RoleProtectedRoute allowedRoles={['admin', 'manager', 'frontdesk', 'clinical_worker', 'nurse']}>
+                <Referrals />
               </RoleProtectedRoute>
             } 
           />

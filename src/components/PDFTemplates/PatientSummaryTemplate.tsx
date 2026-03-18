@@ -12,13 +12,13 @@ export const PatientSummaryTemplate: React.FC<PatientSummaryTemplateProps> = ({ 
   return (
     <BasePDFTemplate title="Patient Summary Profile">
       {/* Patient Header */}
-      <div className="flex items-center gap-8 bg-partners-blue-dark/5 p-6 rounded-2xl border border-partners-blue-dark/10">
-        <div className="w-20 h-20 rounded-2xl bg-partners-blue-dark text-white flex items-center justify-center text-3xl font-bold">
+      <div className="flex items-center gap-8 p-6 rounded-2xl border" style={{ backgroundColor: 'rgba(0, 86, 150, 0.05)', borderColor: 'rgba(0, 86, 150, 0.1)' }}>
+        <div className="w-20 h-20 rounded-2xl text-white flex items-center justify-center text-3xl font-bold" style={{ backgroundColor: '#005696' }}>
           {patient.first_name?.[0] || 'P'}{patient.last_name?.[0] || 'T'}
         </div>
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold text-zinc-900">{patient.last_name || 'Patient'}, {patient.first_name || ''}</h2>
-          <div className="flex gap-4 text-sm text-zinc-500">
+          <h2 className="text-2xl font-bold text-zinc-900" style={{ color: '#18181b' }}>{patient.last_name || 'Patient'}, {patient.first_name || ''}</h2>
+          <div className="flex gap-4 text-sm text-zinc-500" style={{ color: '#71717a' }}>
             <span>DOB: {patient.dob ? format(new Date(patient.dob), 'MMMM d, yyyy') : 'N/A'}</span>
             <span>•</span>
             <span className="capitalize">{patient.gender || 'N/A'}</span>
@@ -88,15 +88,15 @@ export const PatientSummaryTemplate: React.FC<PatientSummaryTemplateProps> = ({ 
         <div className="grid grid-cols-3 gap-4">
           <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
             <p className="text-[10px] font-bold text-zinc-400 uppercase">Annual Physical</p>
-            <p className="text-xs font-bold text-zinc-900">{patient.last_annual_physical && patient.last_annual_physical !== 'Never' ? format(new Date(patient.last_annual_physical), 'MMM d, yyyy') : 'Never'}</p>
+            <p className="text-xs font-bold text-zinc-900">{(patient.last_annual_physical && patient.last_annual_physical !== 'Never' && !isNaN(new Date(patient.last_annual_physical).getTime())) ? format(new Date(patient.last_annual_physical), 'MMM d, yyyy') : 'Never'}</p>
           </div>
           <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
             <p className="text-[10px] font-bold text-zinc-400 uppercase">Health Status Report</p>
-            <p className="text-xs font-bold text-zinc-900">{patient.last_semi_annual_report && patient.last_semi_annual_report !== 'Never' ? format(new Date(patient.last_semi_annual_report), 'MMM d, yyyy') : 'Never'}</p>
+            <p className="text-xs font-bold text-zinc-900">{(patient.last_semi_annual_report && patient.last_semi_annual_report !== 'Never' && !isNaN(new Date(patient.last_semi_annual_report).getTime())) ? format(new Date(patient.last_semi_annual_report), 'MMM d, yyyy') : 'Never'}</p>
           </div>
           <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
             <p className="text-[10px] font-bold text-zinc-400 uppercase">Monthly Visit</p>
-            <p className="text-xs font-bold text-zinc-900">{patient.last_monthly_visit && patient.last_monthly_visit !== 'Never' ? format(new Date(patient.last_monthly_visit), 'MMM d, yyyy') : 'Never'}</p>
+            <p className="text-xs font-bold text-zinc-900">{(patient.last_monthly_visit && patient.last_monthly_visit !== 'Never' && !isNaN(new Date(patient.last_monthly_visit).getTime())) ? format(new Date(patient.last_monthly_visit), 'MMM d, yyyy') : 'Never'}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">

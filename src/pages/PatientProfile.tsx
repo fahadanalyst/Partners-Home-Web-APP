@@ -45,6 +45,56 @@ interface Patient {
   last_annual_physical: string | null;
   last_semi_annual_report: string | null;
   last_monthly_visit: string | null;
+  preferred_name: string | null;
+  race: string | null;
+  religion: string | null;
+  marital_status: string | null;
+  primary_language: string | null;
+  height: string | null;
+  weight: string | null;
+  is_responsible_for_self: boolean;
+  mds_date: string | null;
+  hospital_of_choice: string | null;
+  start_of_service: string | null;
+  occupation: string | null;
+  mothers_maiden_name: string | null;
+  primary_payer: string | null;
+  medicare_id: string | null;
+  medicaid_id: string | null;
+  other_insurance: string | null;
+  other_insurance_id: string | null;
+  living_will: string | null;
+  full_code: string | null;
+  organ_donation: string | null;
+  autopsy_request: string | null;
+  hospice: string | null;
+  dnr: string | null;
+  dni: string | null;
+  dnh: string | null;
+  feeding_restrictions: string | null;
+  medication_restrictions: string | null;
+  other_treatment_restrictions: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relationship: string | null;
+  emergency_contact_address: {
+    street?: string;
+    apt?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  } | null;
+  pcp_id: string | null;
+  other_provider_ids: string | null;
+  diagnoses: {
+    disease: string;
+    icd10: string;
+  }[] | null;
+  medications: {
+    medicine: string;
+    dosage: string;
+    schedule: string;
+  }[] | null;
   created_at: string;
 }
 
@@ -307,6 +357,234 @@ export const PatientProfile: React.FC = () => {
                 <p className="text-sm text-zinc-500 italic">No recent visits recorded.</p>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Information Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Demographics & Personal */}
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+              <User size={18} className="text-partners-blue-dark" />
+              Expanded Demographics
+            </h3>
+          </div>
+          <div className="p-6 grid grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Preferred Name</p>
+              <p className="text-zinc-700">{patient.preferred_name || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Race</p>
+              <p className="text-zinc-700">{patient.race || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Religion</p>
+              <p className="text-zinc-700">{patient.religion || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Marital Status</p>
+              <p className="text-zinc-700">{patient.marital_status || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Primary Language</p>
+              <p className="text-zinc-700">{patient.primary_language || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Height / Weight</p>
+              <p className="text-zinc-700">{patient.height || 'N/A'} / {patient.weight || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Responsible for Self</p>
+              <p className="text-zinc-700">{patient.is_responsible_for_self ? 'Yes' : 'No'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Occupation</p>
+              <p className="text-zinc-700">{patient.occupation || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Census & Service */}
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+              <ClipboardList size={18} className="text-partners-green" />
+              Census & Service Details
+            </h3>
+          </div>
+          <div className="p-6 grid grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">MDS Date</p>
+              <p className="text-zinc-700">{patient.mds_date ? format(new Date(patient.mds_date), 'MMM d, yyyy') : 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Hospital of Choice</p>
+              <p className="text-zinc-700">{patient.hospital_of_choice || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Start of Service</p>
+              <p className="text-zinc-700">{patient.start_of_service ? format(new Date(patient.start_of_service), 'MMM d, yyyy') : 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Mother's Maiden Name</p>
+              <p className="text-zinc-700">{patient.mothers_maiden_name || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Primary Payer</p>
+              <p className="text-zinc-700">{patient.primary_payer || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Medicare ID</p>
+              <p className="text-zinc-700">{patient.medicare_id || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Medicaid ID</p>
+              <p className="text-zinc-700">{patient.medicaid_id || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced Directives */}
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+              <Shield size={18} className="text-partners-blue-dark" />
+              Advanced Directives
+            </h3>
+          </div>
+          <div className="p-6 grid grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Living Will</p>
+              <p className="text-zinc-700">{patient.living_will || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Full Code</p>
+              <p className="text-zinc-700">{patient.full_code || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">DNR / DNI / DNH</p>
+              <p className="text-zinc-700">{patient.dnr || 'No'} / {patient.dni || 'No'} / {patient.dnh || 'No'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Organ Donation</p>
+              <p className="text-zinc-700">{patient.organ_donation || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Hospice</p>
+              <p className="text-zinc-700">{patient.hospice || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Emergency Contact */}
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+              <Phone size={18} className="text-partners-green" />
+              Emergency Contact
+            </h3>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Name</p>
+                <p className="text-zinc-700 font-bold">{patient.emergency_contact_name || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Relationship</p>
+                <p className="text-zinc-700">{patient.emergency_contact_relationship || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Phone</p>
+                <p className="text-zinc-700">{patient.emergency_contact_phone || 'N/A'}</p>
+              </div>
+            </div>
+            {patient.emergency_contact_address && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Address</p>
+                <p className="text-zinc-700">
+                  {patient.emergency_contact_address.street}
+                  {patient.emergency_contact_address.apt && `, ${patient.emergency_contact_address.apt}`}
+                  <br />
+                  {patient.emergency_contact_address.city}, {patient.emergency_contact_address.state} {patient.emergency_contact_address.zip}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Medical Info: Diagnoses & Medications */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+              <Activity size={18} className="text-red-500" />
+              Diagnoses
+            </h3>
+          </div>
+          <div className="p-6">
+            {patient.diagnoses && patient.diagnoses.length > 0 ? (
+              <div className="space-y-3">
+                {patient.diagnoses.map((diag, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <span className="text-sm font-bold text-zinc-900">{diag.disease}</span>
+                    <span className="text-xs font-mono bg-zinc-200 px-2 py-1 rounded text-zinc-600">{diag.icd10}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500 italic">No diagnoses recorded.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+              <ClipboardList size={18} className="text-partners-blue-dark" />
+              Medications
+            </h3>
+          </div>
+          <div className="p-6">
+            {patient.medications && patient.medications.length > 0 ? (
+              <div className="space-y-3">
+                {patient.medications.map((med, idx) => (
+                  <div key={idx} className="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-bold text-zinc-900">{med.medicine}</span>
+                      <span className="text-xs font-medium text-partners-blue-dark">{med.dosage}</span>
+                    </div>
+                    <p className="text-xs text-zinc-500">{med.schedule}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500 italic">No medications recorded.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Providers Section */}
+      <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+          <h3 className="font-bold text-zinc-900 flex items-center gap-2">
+            <User size={18} className="text-partners-blue-dark" />
+            Healthcare Providers
+          </h3>
+        </div>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Primary Care Physician (PCP)</p>
+            <p className="text-zinc-700">{patient.pcp_id || 'N/A'}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Other Providers</p>
+            <p className="text-zinc-700 whitespace-pre-wrap">{patient.other_provider_ids || 'None listed'}</p>
           </div>
         </div>
       </div>

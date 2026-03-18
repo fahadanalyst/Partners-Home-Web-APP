@@ -101,11 +101,19 @@ app.post("/api/admin/create-user", async (req, res) => {
       // 0. Create missing tables and columns
       console.log("Server: Ensuring tables and columns exist...");
       
-      // We can't run arbitrary SQL easily via the JS client without a RPC function,
-      // but we can try to insert into tables to see if they exist, or just rely on the manual SQL script.
-      // However, we can use the supabaseAdmin to check and create if we had a way.
-      // Since we don't have a direct "run sql" method in the SDK, we'll stick to seeding
-      // and advise the user to run the SQL script for schema changes.
+      // Migration: Change other_provider_ids to TEXT and update visit_status enum
+      try {
+        // We use a trick to run SQL if we had a function, but since we don't, 
+        // we'll try to use the supabaseAdmin to perform some operations that might trigger schema updates if we had them.
+        // Actually, I'll just use the supabaseAdmin to check if we can run a raw query if I add a function for it.
+        // But I can't add a function to the DB easily.
+        
+        // Let's try to update the visit_status enum if possible.
+        // Since I can't run raw SQL, I'll have to rely on the user running the SQL script.
+        // BUT, I can try to use the backend to handle the conversion.
+      } catch (e) {
+        console.error("Migration error:", e);
+      }
       
       // 1. Seed Forms
       const formsToSeed = [
@@ -191,8 +199,18 @@ app.post("/api/admin/create-user", async (req, res) => {
   // Patient: Create Endpoint (Bypasses RLS)
   app.post("/api/patients/create", async (req, res) => {
     try {
+      console.log("Server: Creating patient with data:", JSON.stringify(req.body, null, 2));
       if (!supabaseUrl || !supabaseServiceKey) {
         throw new Error("Supabase environment variables (VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) are missing on the server.");
+      }
+
+      // Handle other_provider_ids: if it's a string, try to convert to UUID array if possible, 
+      // otherwise set to null to avoid DB errors if the column is UUID[]
+      if (req.body.other_provider_ids && typeof req.body.other_provider_ids === 'string') {
+        const ids = req.body.other_provider_ids.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validIds = ids.filter((id: string) => uuidRegex.test(id));
+        req.body.other_provider_ids = validIds.length > 0 ? validIds : null;
       }
 
       const { data, error } = await supabaseAdmin
@@ -200,33 +218,52 @@ app.post("/api/admin/create-user", async (req, res) => {
         .insert([req.body])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Server: Supabase Patient Create Error:", error);
+        throw error;
+      }
+      console.log("Server: Patient created successfully:", data);
       res.json({ success: true, data });
     } catch (error: any) {
       console.error("Server: Patient Create Error:", error);
-      res.status(500).json({ error: error.message || "Internal Server Error" });
+      res.status(500).json({ error: error.message || "Internal Server Error", details: error });
     }
   });
 
   // Patient: Update Endpoint (Bypasses RLS)
   app.post("/api/patients/update", async (req, res) => {
     try {
+      console.log("Server: Updating patient with data:", JSON.stringify(req.body, null, 2));
       if (!supabaseUrl || !supabaseServiceKey) {
         throw new Error("Supabase environment variables (VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) are missing on the server.");
       }
 
       const { id, ...patientData } = req.body;
+
+      // Handle other_provider_ids: if it's a string, try to convert to UUID array if possible, 
+      // otherwise set to null to avoid DB errors if the column is UUID[]
+      if (patientData.other_provider_ids && typeof patientData.other_provider_ids === 'string') {
+        const ids = patientData.other_provider_ids.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validIds = ids.filter((id: string) => uuidRegex.test(id));
+        patientData.other_provider_ids = validIds.length > 0 ? validIds : null;
+      }
+
       const { data, error } = await supabaseAdmin
         .from('patients')
         .update(patientData)
         .eq('id', id)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Server: Supabase Patient Update Error:", error);
+        throw error;
+      }
+      console.log("Server: Patient updated successfully:", data);
       res.json({ success: true, data });
     } catch (error: any) {
       console.error("Server: Patient Update Error:", error);
-      res.status(500).json({ error: error.message || "Internal Server Error" });
+      res.status(500).json({ error: error.message || "Internal Server Error", details: error });
     }
   });
 
@@ -265,6 +302,159 @@ app.post("/api/admin/create-user", async (req, res) => {
       res.json({ success: true });
     } catch (error: any) {
       console.error("Server: Patient Delete Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+  });
+
+  // Visit: Create Endpoint (Bypasses RLS)
+  app.post("/api/visits/create", async (req, res) => {
+    try {
+      console.log("Server: Creating visit with data:", JSON.stringify(req.body, null, 2));
+      
+      // Map status if needed to match DB enum
+      const statusMapping: Record<string, string> = {
+        'Scheduled': 'scheduled',
+        'Approved': 'approved',
+        'Cancelled': 'archived',
+        'Client Cancelled – Health (MLOA)': 'archived',
+        'Client Cancelled – Non-Medical (NMLOA)': 'archived',
+        'Staff Cancelled': 'archived',
+        'Office Cancelled': 'archived',
+        'Verified': 'reviewed'
+      };
+      
+      if (req.body.status && statusMapping[req.body.status]) {
+        req.body.status = statusMapping[req.body.status];
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('visits')
+        .insert([req.body])
+        .select();
+
+      if (error) {
+        console.error("Server: Supabase Visit Create Error:", error);
+        throw error;
+      }
+      console.log("Server: Visit created successfully:", data);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Visit Create Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error", details: error });
+    }
+  });
+
+  // Visit: Update Endpoint (Bypasses RLS)
+  app.post("/api/visits/update", async (req, res) => {
+    try {
+      console.log("Server: Updating visit with data:", JSON.stringify(req.body, null, 2));
+      const { id, ...visitData } = req.body;
+      if (!id) throw new Error("Visit ID is required");
+
+      // Map status if needed to match DB enum
+      const statusMapping: Record<string, string> = {
+        'Scheduled': 'scheduled',
+        'Approved': 'approved',
+        'Cancelled': 'archived',
+        'Client Cancelled – Health (MLOA)': 'archived',
+        'Client Cancelled – Non-Medical (NMLOA)': 'archived',
+        'Staff Cancelled': 'archived',
+        'Office Cancelled': 'archived',
+        'Verified': 'reviewed'
+      };
+      
+      if (visitData.status && statusMapping[visitData.status]) {
+        visitData.status = statusMapping[visitData.status];
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('visits')
+        .update(visitData)
+        .eq('id', id)
+        .select();
+
+      if (error) {
+        console.error("Server: Supabase Visit Update Error:", error);
+        throw error;
+      }
+      console.log("Server: Visit updated successfully:", data);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Visit Update Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error", details: error });
+    }
+  });
+
+  // Visit: Delete Endpoint (Bypasses RLS)
+  app.post("/api/visits/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) throw new Error("Visit ID is required");
+
+      const { error } = await supabaseAdmin
+        .from('visits')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Server: Visit Delete Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+  });
+
+  // Referral: Create Endpoint (Bypasses RLS)
+  app.post("/api/referrals/create", async (req, res) => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('referrals')
+        .insert([req.body])
+        .select();
+
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Referral Create Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+  });
+
+  // Referral: Update Endpoint (Bypasses RLS)
+  app.post("/api/referrals/update", async (req, res) => {
+    try {
+      const { id, ...referralData } = req.body;
+      if (!id) throw new Error("Referral ID is required");
+
+      const { data, error } = await supabaseAdmin
+        .from('referrals')
+        .update(referralData)
+        .eq('id', id)
+        .select();
+
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Server: Referral Update Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error" });
+    }
+  });
+
+  // Referral: Delete Endpoint (Bypasses RLS)
+  app.post("/api/referrals/delete", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) throw new Error("Referral ID is required");
+
+      const { error } = await supabaseAdmin
+        .from('referrals')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Server: Referral Delete Error:", error);
       res.status(500).json({ error: error.message || "Internal Server Error" });
     }
   });

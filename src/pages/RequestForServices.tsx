@@ -151,18 +151,21 @@ export const RequestForServices: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
+    console.log('Request for Services: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('Request for Services: Form data for PDF:', formData);
       const success = await generateFormPDF(FORM_NAME, formData);
       
       if (!success && formRef.current) {
-        // Fallback to old method if no template exists
+        console.log('Request for Services: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `Request_For_Services_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('Request for Services: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('Request for Services: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -246,7 +249,7 @@ export const RequestForServices: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
@@ -292,7 +295,7 @@ export const RequestForServices: React.FC = () => {
       <form 
         ref={formRef}
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
       >
         <div className="flex justify-end">
           <div className="space-y-1">

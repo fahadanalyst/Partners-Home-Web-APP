@@ -99,18 +99,21 @@ export const MedicationAdministrationRecord: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const handlePrint = async () => {
+    console.log('Medication Administration Record: Starting PDF generation...');
     try {
       setIsGeneratingPDF(true);
       const formData = getValues();
+      console.log('Medication Administration Record: Form data for PDF:', formData);
       const success = await generateFormPDF(FORM_NAME, formData);
       
       if (!success && formRef.current) {
-        // Fallback to old method if no template exists
+        console.log('Medication Administration Record: Template PDF failed or not found, falling back to exportToPDF...');
         const { exportToPDF } = await import('../utils/pdfExport');
         await exportToPDF(formRef.current, `MAR_${new Date().toISOString().split('T')[0]}.pdf`);
       }
+      console.log('Medication Administration Record: PDF generation successful.');
     } catch (error) {
-      console.error('PDF error:', error);
+      console.error('Medication Administration Record: PDF error:', error);
       setNotification({ type: 'error', message: 'Failed to generate PDF. Please try again.' });
     } finally {
       setIsGeneratingPDF(false);
@@ -202,7 +205,7 @@ export const MedicationAdministrationRecord: React.FC = () => {
   const daysInMonth = 31; // Simplified for UI
 
   return (
-    <div className="max-w-full mx-auto p-8">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
@@ -241,8 +244,8 @@ export const MedicationAdministrationRecord: React.FC = () => {
         </div>
       </div>
 
-      <form ref={formRef} className="space-y-8 bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-x-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 min-w-[1000px]">
+      <form ref={formRef} className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-partners-blue-dark font-bold border-b pb-2">
               <User size={20} />
@@ -266,8 +269,8 @@ export const MedicationAdministrationRecord: React.FC = () => {
         </div>
 
         {/* MAR Table */}
-        <div className="min-w-[1200px]">
-          <div className="flex items-center justify-between mb-4">
+        <div className="w-full">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
             <h3 className="font-bold text-zinc-900 flex items-center gap-2">
               <Clock size={20} />
               Medication Log
@@ -278,8 +281,8 @@ export const MedicationAdministrationRecord: React.FC = () => {
             </Button>
           </div>
           
-          <div className="border border-zinc-200 rounded-2xl overflow-hidden">
-            <table className="w-full text-xs border-collapse">
+          <div className="border border-zinc-200 rounded-2xl overflow-x-auto">
+            <table className="w-full text-xs border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200">
                   <th className="p-2 border-r border-zinc-200 w-48">Medication / Dose / Route / Freq</th>
@@ -328,9 +331,9 @@ export const MedicationAdministrationRecord: React.FC = () => {
         </div>
 
         {/* Staff Initials */}
-        <section className="pt-8 border-t border-zinc-200 min-w-[1000px]">
+        <section className="pt-8 border-t border-zinc-200">
           <h3 className="font-bold text-zinc-900 mb-4">Staff Signatures & Initials</h3>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[0, 1, 2, 3].map(i => (
               <div key={i} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 space-y-3">
                 <div className="flex gap-2">
