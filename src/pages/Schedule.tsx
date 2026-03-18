@@ -108,7 +108,7 @@ export const Schedule: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
-    if (s.includes('cancelled') || s.includes('canceled')) return 'bg-red-100 text-red-700 border-red-200';
+    if (s.includes('cancelled') || s.includes('canceled') || s === 'archived') return 'bg-red-100 text-red-700 border-red-200';
     if (s === 'approved') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
     if (s === 'scheduled') return 'bg-blue-100 text-blue-700 border-blue-200';
     if (s === 'verified' || s === 'reviewed') return 'bg-purple-100 text-purple-700 border-purple-200';
@@ -451,7 +451,7 @@ export const Schedule: React.FC = () => {
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(visit.status)}`}>
-                      {visit.status}
+                      {visit.status === 'archived' ? (visit.cancellation_reason || 'Cancelled') : visit.status}
                     </span>
                     <Button 
                       variant="ghost" 
@@ -572,7 +572,7 @@ export const Schedule: React.FC = () => {
                 <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Current Status</p>
                 <div className="flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(selectedVisit.status)}`}>
-                    {selectedVisit.status}
+                    {selectedVisit.status === 'archived' ? (selectedVisit.cancellation_reason || 'Cancelled') : selectedVisit.status}
                   </span>
                 </div>
               </div>
@@ -601,20 +601,28 @@ export const Schedule: React.FC = () => {
             <div className="space-y-2 pt-4 border-t border-zinc-100">
               <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Update Status</p>
               <div className="flex flex-wrap gap-2">
-                {['Scheduled', 'Approved', 'Cancelled', 'Client Cancelled – Health (MLOA)', 'Client Cancelled – Non-Medical (NMLOA)', 'Staff Cancelled', 'Office Cancelled', 'Verified'].map((status) => (
-                  <Button
-                    key={status}
-                    variant={selectedVisit.status === status ? 'primary' : 'secondary'}
-                    size="sm"
-                    className={clsx(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      selectedVisit.status === status && "ring-2 ring-offset-2 ring-partners-blue-dark"
-                    )}
-                    onClick={() => updateVisitStatus(selectedVisit.id, status)}
-                  >
-                    {status}
-                  </Button>
-                ))}
+                {['Scheduled', 'Approved', 'Cancelled', 'Client Cancelled – Health (MLOA)', 'Client Cancelled – Non-Medical (NMLOA)', 'Staff Cancelled', 'Office Cancelled', 'Verified'].map((status) => {
+                  const isActive = selectedVisit.status === status || 
+                                 (selectedVisit.status === 'archived' && selectedVisit.cancellation_reason === status) ||
+                                 (selectedVisit.status === 'reviewed' && status === 'Verified') ||
+                                 (selectedVisit.status === 'scheduled' && status === 'Scheduled') ||
+                                 (selectedVisit.status === 'approved' && status === 'Approved');
+
+                  return (
+                    <Button
+                      key={status}
+                      variant={isActive ? 'primary' : 'secondary'}
+                      size="sm"
+                      className={clsx(
+                        "text-[10px] font-bold uppercase tracking-wider",
+                        isActive && "ring-2 ring-offset-2 ring-partners-blue-dark"
+                      )}
+                      onClick={() => updateVisitStatus(selectedVisit.id, status)}
+                    >
+                      {status}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 

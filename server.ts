@@ -315,15 +315,23 @@ app.post("/api/admin/create-user", async (req, res) => {
       const statusMapping: Record<string, string> = {
         'Scheduled': 'scheduled',
         'Approved': 'approved',
-        'Cancelled': 'archived',
-        'Client Cancelled – Health (MLOA)': 'archived',
-        'Client Cancelled – Non-Medical (NMLOA)': 'archived',
-        'Staff Cancelled': 'archived',
-        'Office Cancelled': 'archived',
         'Verified': 'reviewed'
       };
       
-      if (req.body.status && statusMapping[req.body.status]) {
+      const cancellationStatuses = [
+        'Cancelled',
+        'Client Cancelled – Health (MLOA)',
+        'Client Cancelled – Non-Medical (NMLOA)',
+        'Staff Cancelled',
+        'Office Cancelled'
+      ];
+
+      if (req.body.status && cancellationStatuses.includes(req.body.status)) {
+        if (!req.body.cancellation_reason) {
+          req.body.cancellation_reason = req.body.status;
+        }
+        req.body.status = 'archived';
+      } else if (req.body.status && statusMapping[req.body.status]) {
         req.body.status = statusMapping[req.body.status];
       }
 
@@ -355,15 +363,23 @@ app.post("/api/admin/create-user", async (req, res) => {
       const statusMapping: Record<string, string> = {
         'Scheduled': 'scheduled',
         'Approved': 'approved',
-        'Cancelled': 'archived',
-        'Client Cancelled – Health (MLOA)': 'archived',
-        'Client Cancelled – Non-Medical (NMLOA)': 'archived',
-        'Staff Cancelled': 'archived',
-        'Office Cancelled': 'archived',
         'Verified': 'reviewed'
       };
       
-      if (visitData.status && statusMapping[visitData.status]) {
+      const cancellationStatuses = [
+        'Cancelled',
+        'Client Cancelled – Health (MLOA)',
+        'Client Cancelled – Non-Medical (NMLOA)',
+        'Staff Cancelled',
+        'Office Cancelled'
+      ];
+
+      if (visitData.status && cancellationStatuses.includes(visitData.status)) {
+        if (!visitData.cancellation_reason) {
+          visitData.cancellation_reason = visitData.status;
+        }
+        visitData.status = 'archived';
+      } else if (visitData.status && statusMapping[visitData.status]) {
         visitData.status = statusMapping[visitData.status];
       }
 
