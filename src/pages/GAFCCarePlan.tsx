@@ -377,32 +377,30 @@ export const GAFCCarePlan: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-8 gap-6 border-b border-zinc-100 pb-8">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <Logo showText size={64} />
-          <div className="space-y-1 text-center sm:text-left">
-            <h2 className="text-2xl md:text-3xl font-bold text-partners-blue-dark flex flex-col sm:flex-row items-center gap-3">
-              <div className="p-2 bg-partners-blue-light/10 rounded-xl">
-                <ClipboardList className="text-partners-blue-light" size={28} />
-              </div>
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <Logo showText size={48} />
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <ClipboardList className="text-partners-green shrink-0" />
               GAFC CARE PLAN
             </h2>
-            <p className="text-partners-gray text-base md:text-lg">Comprehensive MassHealth GAFC Care Plan Template.</p>
+            <p className="text-sm md:text-base text-partners-gray">Comprehensive MassHealth GAFC Care Plan Template.</p>
           </div>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-end gap-4 w-full lg:w-auto no-print">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto md:justify-end no-print">
           <div className="w-full sm:w-64">
-            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">Select Patient</label>
+            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1 ml-1">Select Patient</label>
             <select 
               value={patientId || ''} 
               onChange={(e) => handlePatientChange(e.target.value)}
-              className="w-full h-11 px-4 rounded-xl border border-zinc-200 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-partners-blue-dark focus:border-transparent transition-all appearance-none cursor-pointer shadow-sm hover:border-zinc-300"
+              className="w-full h-10 px-4 rounded-xl border border-zinc-200 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-partners-blue-dark transition-all appearance-none cursor-pointer shadow-sm"
               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.25rem' }}
             >
               <option value="">-- Choose a Patient --</option>
@@ -412,29 +410,25 @@ export const GAFCCarePlan: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex gap-3 w-full sm:w-auto no-print">
+          <div className="flex flex-row items-center justify-end gap-3 w-full sm:w-auto mt-auto">
             <Button 
               variant="secondary" 
               type="button" 
               onClick={handlePrint}
               disabled={isGeneratingPDF}
-              className="flex-1 sm:flex-none h-11 px-6 rounded-xl shadow-sm"
+              className="h-10 px-4 rounded-xl shadow-sm"
             >
-              {isGeneratingPDF ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4 mr-2" />
-              )}
+              {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
               {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </Button>
             <Button 
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={isSubmitting}
-              className="flex-1 sm:flex-none h-11 px-8 rounded-xl shadow-md"
+              className="h-10 px-4 rounded-xl shadow-md bg-partners-blue-dark hover:bg-partners-blue transition-all active:scale-95"
             >
               <Send className="w-4 h-4 mr-2" />
-              {isSubmitting ? 'Submitting...' : 'Submit Care Plan'}
+              {isSubmitting ? 'Submitting...' : 'Submit Form'}
             </Button>
           </div>
         </div>
@@ -443,7 +437,7 @@ export const GAFCCarePlan: React.FC = () => {
       <form 
         ref={formRef}
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-10"
+        className="space-y-10 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-hidden"
       >
         {Object.keys(errors).length > 0 && (
           <div className="p-4 bg-red-50 border border-red-100 rounded-xl">

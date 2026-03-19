@@ -49,8 +49,8 @@ export const Logo: React.FC<LogoProps> = ({ className = '', size = 32, showText 
       </svg>
       {showText && (
         <div className="flex flex-col">
-          <span className="text-xl font-bold text-[#005696] leading-tight italic">Partners Home</span>
-          <span className="text-[10px] text-[#666666] uppercase tracking-widest font-medium -mt-1">and Nursing Services</span>
+          <span className="text-xl font-bold text-[#005696] leading-tight italic whitespace-nowrap">Partners Home</span>
+          <span className="text-[10px] text-[#666666] uppercase tracking-widest font-medium -mt-1 whitespace-nowrap">and Nursing Services</span>
         </div>
       )}
     </div>

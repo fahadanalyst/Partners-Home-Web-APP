@@ -259,42 +259,38 @@ export const ClinicalNoteForm: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-6">
-          <Logo className="h-16 w-auto" />
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <Logo showText size={48} />
           <div>
-            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-              <FileText className="text-partners-green" />
+            <h2 className="text-xl md:text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <FileText className="text-partners-green shrink-0" />
               Clinical Note
             </h2>
-            <p className="text-partners-gray">General clinical observations and documentation.</p>
+            <p className="text-sm md:text-base text-partners-gray">General clinical observations and documentation.</p>
           </div>
         </div>
-        <div className="flex gap-3 no-print">
+        <div className="flex flex-row items-center justify-end gap-3 no-print">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
-            className="h-11 px-6 rounded-xl shadow-sm"
+            className="h-10 px-4 rounded-xl shadow-sm"
           >
-            {isGeneratingPDF ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
+            {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
-            className="h-11 px-8 rounded-xl shadow-md"
+            className="h-10 px-4 rounded-xl shadow-md bg-partners-blue-dark hover:bg-partners-blue transition-all active:scale-95"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Note'}
@@ -305,8 +301,18 @@ export const ClinicalNoteForm: React.FC = () => {
       <form 
         ref={formRef}
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-hidden"
       >
+        {Object.keys(errors).length > 0 && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <p className="font-bold mb-1">Please correct the following errors before submitting:</p>
+            <ul className="list-disc list-inside">
+              {Object.entries(errors).map(([key, error]: [string, any]) => (
+                <li key={key}>{error.message || `Error in ${key}`}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
             <div className="space-y-1">

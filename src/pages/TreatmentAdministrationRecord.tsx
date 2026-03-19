@@ -196,37 +196,38 @@ export const TreatmentAdministrationRecord: React.FC = () => {
   const daysInMonth = 31;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-      <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-6">
-          <Logo className="h-16 w-auto" />
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <Logo showText size={48} />
           <div>
-            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-              <Activity className="text-partners-green" />
+            <h2 className="text-xl md:text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <Activity className="text-partners-green shrink-0" />
               Treatment Administration Record (TAR)
             </h2>
-            <p className="text-partners-gray">Monthly tracking of non-medication treatments and vitals.</p>
+            <p className="text-sm md:text-base text-partners-gray">Monthly tracking of non-medication treatments and vitals.</p>
           </div>
         </div>
-        <div className="flex gap-3 no-print">
+        <div className="flex flex-row items-center justify-end gap-3 no-print w-full md:w-auto mt-auto">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
-            className="h-11 px-6 rounded-xl shadow-sm"
+            className="h-10 px-4 rounded-xl shadow-sm"
           >
             {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
+            type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting || isSavingDraft}
-            className="h-11 px-8 rounded-xl shadow-md"
+            className="h-10 px-4 rounded-xl shadow-md bg-partners-blue-dark hover:bg-partners-blue transition-all active:scale-95"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -234,7 +235,17 @@ export const TreatmentAdministrationRecord: React.FC = () => {
         </div>
       </div>
 
-      <form ref={formRef} className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm">
+      <form ref={formRef} className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        {Object.keys(errors).length > 0 && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <p className="font-bold mb-1">Please correct the following errors before submitting:</p>
+            <ul className="list-disc list-inside">
+              {Object.entries(errors).map(([key, error]: [string, any]) => (
+                <li key={key}>{error.message || `Error in ${key}`}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-partners-blue-dark font-bold border-b pb-2">
@@ -270,58 +281,64 @@ export const TreatmentAdministrationRecord: React.FC = () => {
             </Button>
           </div>
           
-          <div className="border border-zinc-200 rounded-2xl overflow-x-auto">
-            <table className="w-full text-xs border-collapse min-w-[1000px]">
-              <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-200">
-                  <th className="p-2 border-r border-zinc-200 w-64">Treatment Description / Frequency</th>
-                  <th className="p-2 border-r border-zinc-200 w-16">Time</th>
-                  {Array.from({ length: daysInMonth }).map((_, i) => (
-                    <th key={i} className="p-1 border-r border-zinc-200 text-center w-8">{i + 1}</th>
-                  ))}
-                  <th className="p-2 w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {treatFields.map((field, index) => (
-                  <tr key={field.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="p-2 border-r border-zinc-200">
-                      <div className="space-y-1">
-                        <input {...register(`treatments.${index}.description`)} placeholder="Treatment Description" className="w-full bg-transparent font-bold outline-none" />
-                        <input {...register(`treatments.${index}.frequency`)} placeholder="Frequency" className="w-full bg-transparent text-[10px] text-zinc-500 outline-none" />
-                      </div>
-                    </td>
-                    <td className="p-2 border-r border-zinc-200">
-                      <input {...register(`treatments.${index}.times`)} placeholder="09:00" className="w-full bg-transparent text-center outline-none font-medium" />
-                    </td>
+          <div className="border border-zinc-200 rounded-2xl overflow-hidden">
+            <div className="w-full overflow-x-auto md:overflow-x-visible">
+              <table className="w-full text-[9px] border-collapse table-fixed">
+                <thead>
+                  <tr className="bg-zinc-50 border-b border-zinc-200">
+                    <th className="p-0.5 border-r border-zinc-200 w-6 text-center">#</th>
+                    <th className="p-1 border-r border-zinc-200 w-32 text-left">Treatment Description / Frequency</th>
+                    <th className="p-1 border-r border-zinc-200 w-10 text-center">Time</th>
                     {Array.from({ length: daysInMonth }).map((_, i) => (
-                      <td key={i} className="p-0 border-r border-zinc-200 h-10">
-                        <input 
-                          {...register(`treatments.${index}.administrations.${i + 1}`)} 
-                          className="w-full h-full text-center bg-transparent outline-none focus:bg-partners-blue/5 uppercase"
-                          maxLength={2}
-                        />
-                      </td>
+                      <th key={i} className="p-0 border-r border-zinc-200 text-center w-5">{i + 1}</th>
                     ))}
-                    <td className="p-1 text-center">
-                      <button type="button" onClick={() => removeTreat(index)} className="text-red-400 hover:text-red-600">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
+                    <th className="p-1 w-6"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-200">
+                  {treatFields.map((field, index) => (
+                    <tr key={field.id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="p-0.5 border-r border-zinc-200 text-center font-bold text-zinc-400">
+                        {index + 1}
+                      </td>
+                      <td className="p-1 border-r border-zinc-200">
+                        <div className="space-y-0.5">
+                          <input {...register(`treatments.${index}.description`)} placeholder="Treatment Description" className="w-full bg-transparent font-bold outline-none truncate" />
+                          <input {...register(`treatments.${index}.frequency`)} placeholder="Frequency" className="w-full bg-transparent text-[7px] text-zinc-500 outline-none" />
+                        </div>
+                      </td>
+                      <td className="p-1 border-r border-zinc-200">
+                        <input {...register(`treatments.${index}.times`)} placeholder="09:00" className="w-full bg-transparent text-center outline-none font-medium" />
+                      </td>
+                      {Array.from({ length: daysInMonth }).map((_, i) => (
+                        <td key={i} className="p-0 border-r border-zinc-200 h-7">
+                          <input 
+                            {...register(`treatments.${index}.administrations.${i + 1}`)} 
+                            className="w-full h-full text-center bg-transparent outline-none focus:bg-partners-blue/5 uppercase"
+                            maxLength={2}
+                          />
+                        </td>
+                      ))}
+                      <td className="p-0.5 text-center">
+                        <button type="button" onClick={() => removeTreat(index)} className="text-red-400 hover:text-red-600">
+                          <Trash2 size={10} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         {/* Staff Initials */}
         <section className="pt-8 border-t border-zinc-200">
           <h3 className="font-bold text-zinc-900 mb-4">Staff Initials</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {[0, 1, 2, 3].map(i => (
-              <div key={i} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex gap-2">
-                <input {...register(`staffSignatures.${i}.initials`)} placeholder="Initials" className="w-16 px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
+              <div key={i} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex flex-col sm:flex-row gap-2">
+                <input {...register(`staffSignatures.${i}.initials`)} placeholder="Initials" className="w-full sm:w-16 px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
                 <input {...register(`staffSignatures.${i}.name`)} placeholder="Full Name" className="flex-1 px-3 py-1.5 rounded-lg border border-zinc-200 text-sm" />
               </div>
             ))}

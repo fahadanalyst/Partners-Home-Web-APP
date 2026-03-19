@@ -188,6 +188,28 @@ app.post("/api/admin/create-user", async (req, res) => {
         }
       }
 
+      // 1.6 Ensure dummy patient exists
+      console.log("Server: Ensuring dummy patient exists...");
+      const DUMMY_PATIENT_ID = '00000000-0000-0000-0000-000000000000';
+      const { data: existingDummy } = await supabaseAdmin
+        .from('patients')
+        .select('id')
+        .eq('id', DUMMY_PATIENT_ID)
+        .maybeSingle();
+      
+      if (!existingDummy) {
+        await supabaseAdmin.from('patients').insert([{
+          id: DUMMY_PATIENT_ID,
+          first_name: 'System',
+          last_name: 'Test Patient',
+          dob: '1970-01-01',
+          gender: 'other',
+          phone: '000-000-0000',
+          email: 'test@example.com',
+          insurance_id: 'TEST-001'
+        }]);
+      }
+
       console.log("Server: Database setup completed successfully.");
       res.json({ success: true, message: 'Database setup completed successfully.' });
     } catch (error: any) {

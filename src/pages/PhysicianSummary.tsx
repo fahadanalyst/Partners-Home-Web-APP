@@ -242,42 +242,38 @@ export const PhysicianSummary: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-6 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Logo showText size={48} />
           <div>
-            <h2 className="text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-              <FilePlus className="text-partners-green" />
+            <h2 className="text-xl md:text-2xl font-bold text-partners-blue-dark flex items-center gap-2 whitespace-nowrap">
+              <FilePlus className="text-partners-green shrink-0" />
               Physician Summary Form (PSF-1)
             </h2>
-            <p className="text-partners-gray">Verification and validation of medical information.</p>
+            <p className="text-sm md:text-base text-partners-gray">Verification and validation of medical information.</p>
           </div>
         </div>
-        <div className="flex gap-3 no-print">
+        <div className="flex flex-wrap gap-3 no-print w-full">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint}
             disabled={isGeneratingPDF}
-            className="h-11 px-6 rounded-xl shadow-sm"
+            className="h-11 px-4 md:px-6 rounded-xl shadow-sm flex-1 md:flex-none"
           >
-            {isGeneratingPDF ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
+            {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
             type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
-            className="h-11 px-8 rounded-xl shadow-md"
+            className="h-11 px-6 md:px-8 rounded-xl shadow-md flex-1 md:flex-none"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -287,7 +283,7 @@ export const PhysicianSummary: React.FC = () => {
 
       <form 
         ref={formRef}
-        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-x-auto"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-hidden"
       >
         {/* Patient Section */}
         <section className="space-y-4">

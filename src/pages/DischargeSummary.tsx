@@ -92,42 +92,38 @@ export const DischargeSummary: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
       <Link to="/clinical-forms" className="flex items-center gap-2 text-zinc-500 hover:text-partners-blue-dark transition-colors mb-6 group no-print">
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Back to Forms</span>
       </Link>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Logo showText size={48} />
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
-              <ClipboardCheck className="text-partners-green" />
+            <h2 className="text-xl md:text-2xl font-bold text-partners-blue-dark flex items-center gap-2">
+              <ClipboardCheck className="text-partners-green shrink-0" />
               Discharge Summary
             </h2>
-            <p className="text-sm sm:text-base text-partners-gray">Final documentation for patient discharge.</p>
+            <p className="text-sm md:text-base text-partners-gray">Final documentation for patient discharge.</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 no-print w-full sm:w-auto">
+        <div className="flex flex-row items-center justify-end gap-3 no-print">
           <Button 
             variant="secondary" 
             type="button" 
             onClick={handlePrint} 
             disabled={isGeneratingPDF}
-            className="flex-1 sm:flex-none h-11 px-4 sm:px-6 rounded-xl shadow-sm"
+            className="h-10 px-4 rounded-xl shadow-sm"
           >
-            {isGeneratingPDF ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
+            {isGeneratingPDF ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
             {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
           </Button>
           <Button 
             type="button" 
             onClick={handleSubmit(onSubmit)} 
             disabled={isSubmitting}
-            className="flex-1 sm:flex-none h-11 px-4 sm:px-8 rounded-xl shadow-md"
+            className="h-10 px-4 rounded-xl shadow-md bg-partners-blue-dark hover:bg-partners-blue transition-all active:scale-95"
           >
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : 'Submit Form'}
@@ -137,8 +133,18 @@ export const DischargeSummary: React.FC = () => {
 
       <form 
         ref={formRef} 
-        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm"
+        className="space-y-8 bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm overflow-hidden"
       >
+        {Object.keys(errors).length > 0 && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <p className="font-bold mb-1">Please correct the following errors before submitting:</p>
+            <ul className="list-disc list-inside">
+              {Object.entries(errors).map(([key, error]: [string, any]) => (
+                <li key={key}>{error.message || `Error in ${key}`}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-zinc-700">Date</label>
